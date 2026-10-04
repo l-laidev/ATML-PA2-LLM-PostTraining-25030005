@@ -93,7 +93,8 @@ def response_token_logprobs(model, sequences, attention_mask, prompt_width, resp
     )
     logits = outputs.logits[:, prompt_width - 1 : -1, :]
     logits = logits[:, : response_ids.shape[1], :]
-    logp = F.log_softmax(logits.float(), dim=-1)
+    logp = F.log_softmax(logits, dim=-1)
+    # logp = F.log_softmax(logits.float(), dim=-1)
     chosen = torch.gather(logp, -1, response_ids.unsqueeze(-1)).squeeze(-1)
     return chosen, logits
 
@@ -108,7 +109,9 @@ def response_sequence_logprobs(model, batch: dict):
     logits = outputs.logits[:, :-1, :]
     labels = batch["input_ids"][:, 1:]
     mask = batch["response_mask"][:, 1:]
-    logp = F.log_softmax(logits.float(), dim=-1)
+    # TODO: check if we're allowed to use float16
+    # logp = F.log_softmax(logits.float(), dim=-1)
+    logp = torch.log_softmax(logits, dim=-1)
     tok = torch.gather(logp, -1, labels.unsqueeze(-1)).squeeze(-1)
     return (tok * mask).sum(-1), tok, mask
 
