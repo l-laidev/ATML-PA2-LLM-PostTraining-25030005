@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
-from common.data import load_yaml
+
+from common.data import load_yaml, repo_path
+from task2_ppo.continue_train import run_ppo
 
 
 def main():
@@ -11,9 +13,20 @@ def main():
     cfg = load_yaml(args.config)
     print("KL beta conditions:", cfg["kl_values"])
     print("Fork update budget:", cfg["fork_updates"])
-    raise NotImplementedError(
-        "TODO(student): run matched short PPO continuations from the exact same midpoint for each KL beta, then implement the requested reward/drift/entropy/length analysis."
-    )
+    
+    out = repo_path(cfg["output"])
+    out = out / "kl-study"
+    for kl_beta in cfg["kl_values"]:
+        print(f"KL Beta {kl_beta:.4f}")
+        run_ppo(
+            args.config,
+            out / f"kl-beta-{kl_beta:.4f}",
+            cfg["fork_updates"],
+            cfg["clip_epsilon"],
+            kl_beta,
+            f"kl-beta-{kl_beta:.4f}",
+            token_budget=1703,  # based on the standard PPO run's 8th update
+        )
 
 
 if __name__ == "__main__":
