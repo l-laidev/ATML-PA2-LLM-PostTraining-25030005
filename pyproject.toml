@@ -1,0 +1,23 @@
+[project]
+name = "pa2-llm-posttraining"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "accelerate>=1.0,<2",
+    "bitsandbytes>=0.45",
+    "datasets>=3.0,<5",
+    "huggingface-hub>=0.27",
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "pandas>=2.0",
+    "peft==0.17.1",
+    "python-dotenv>=1.2.4",
+    "pyyaml>=6.0",
+    "safetensors>=0.4",
+    "scikit-learn>=1.4",
+    "tokenizers==0.22.1",
+    "torch>=2.4",
+    "tqdm>=4.66",
+    "transformers==4.57.1",
+    "trl==0.27.2",
+]
