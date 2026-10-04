@@ -6,6 +6,7 @@ from pathlib import Path
 import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from common.data import (
     encode_prompt_response,
@@ -16,8 +17,9 @@ from common.data import (
     read_jsonl,
     repo_path,
 )
-from common.logging_utils import set_seed
-from common.models import load_policy, load_tokenizer, trainable_parameters
+from common.generation import response_sequence_logprobs
+from common.logging_utils import append_jsonl, set_seed
+from common.models import load_policy, load_tokenizer, reference_mode, trainable_parameters
 from task1_dpo.dpo import dpo_loss
 
 
@@ -66,16 +68,70 @@ def prepare_dpo_run(config_path: str, dataset_path: str | None = None, beta: flo
 
 
 def run_training(config_path: str, run_name: str, dataset_path: str | None = None, output_path: str | None = None, beta: float | None = None, max_examples: int | None = None):
+    def step(loss, bundle, acc_steps):
+        loss = loss / acc_steps
+        loss.backward()
+        norm = torch.nn.utils.clip_grad_norm_(bundle["model"].parameters(), bundle["cfg"]["max_grad_norm"])
+        bundle["optimizer"].step()
+        bundle["optimizer"].zero_grad()
+        return loss.item(), norm
+
+    def log(loss, norm, cur_diagnostics):
+        append_jsonl(f"{cfg['results_dir']}/{run_name}-diagnostics.jsonl", {
+            "loss": loss,
+            "norm": norm,
+            "logits_mean": cur_diagnostics["logit_mean"].item(),
+            "policy_margin_mean": cur_diagnostics["policy_margin_mean"].item(),
+            "preference_accuracy": cur_diagnostics["preference_accuracy"].item(),
+        })
+
     bundle = prepare_dpo_run(config_path, dataset_path, beta, max_examples)
     cfg = bundle["cfg"]
     output = repo_path(output_path or cfg["standard_output"])
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    raise NotImplementedError(
-        "TODO(student): implement the DPO optimization loop, logging, gradient accumulation, "
-        "reference-policy computation, and checkpoint saving. Validate task1_dpo.dpo.dpo_loss "
-        "against the manual before trusting results."
-    )
+    best_loss = float("inf")
+    diagnostics = {
+        "loss": [],
+        "norm": [],
+        "logits_mean": [],
+        "policy_margin_mean": [],
+        "preference_accuracy": [],
+    }
+    for epoch in range(cfg["epochs"]):
+        bundle["optimizer"].zero_grad()
+        loss = 0.0
+        acc_steps = 0
+        for chosen, rejected in tqdm(bundle["loader"], total=len(bundle["loader"]), desc="Training"):
+            acc_steps += 1
+
+            c = {k: v.to(bundle["model"].device) for k, v in chosen.items()}
+            r = {k: v.to(bundle["model"].device) for k, v in rejected.items()}
+
+            with torch.no_grad():
+                with reference_mode(bundle["model"]):
+                    ref_chosen, _, _ = response_sequence_logprobs(bundle["model"], c)
+                    ref_rejected, _, _ = response_sequence_logprobs(bundle["model"], r)
+
+            policy_chosen, _, _ = response_sequence_logprobs(bundle["model"], c)
+            policy_rejected, _, _ = response_sequence_logprobs(bundle["model"], r)
+
+            cur_loss, cur_diagnostics = dpo_loss(policy_chosen, policy_rejected, ref_chosen, ref_rejected, bundle["beta"])
+            loss += cur_loss
+
+            if acc_steps == cfg["grad_accum_steps"]:
+                loss, norm = step(loss, bundle, acc_steps)
+                acc_steps = 0
+                log(loss, norm, cur_diagnostics)
+        
+        if acc_steps != 0:  # leftover steps
+            loss, norm = step(loss, bundle, acc_steps)
+            acc_steps = 0
+            log(loss, norm, cur_diagnostics)
+
+        if loss < best_loss:
+            best_loss = loss
+            bundle["model"].save_pretrained(output)
 
 
 def main():
