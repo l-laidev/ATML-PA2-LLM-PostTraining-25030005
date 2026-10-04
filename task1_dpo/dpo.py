@@ -16,7 +16,7 @@ def dpo_loss(
     Validate this implementation against the equation in the assignment manual before using it.
     """
     policy_margin = policy_chosen_logp - policy_rejected_logp
-    ref_margin = ref_chosen_logp - ref_rejected_logp
+    ref_margin = -1 * (ref_chosen_logp - ref_rejected_logp)  # correction is that these need to be reversed cuz they are in denominator
 
     # Starter implementation: students must validate the objective carefully.
     logits = beta * (policy_margin + ref_margin)
