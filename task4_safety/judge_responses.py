@@ -6,9 +6,11 @@ import re
 from pathlib import Path
 
 import torch
+import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
 from common.data import load_yaml, read_jsonl
+from common.logging_utils import append_jsonl, save_json
 from common.models import resolve_dtype
 
 LABELS = {
@@ -113,10 +115,19 @@ def main():
     if args.input:
         rows = read_jsonl(args.input)
         print("Input rows:", len(rows))
-    raise NotImplementedError(
-        "TODO(student): apply judge_one to your frozen-policy response files, cache the labels, and implement the required Task 4 aggregation."
-    )
-
+    
+    for policy in cfg["policies"].keys():
+        print(f"Judging: {policy}")
+        path = Path(cfg["results_dir"]) / "task4_safety" / f"judged_{policy}.jsonl"
+        path.unlink(missing_ok=True)
+        
+        for record in tqdm.tqdm(rows, desc="Judging with AI"):
+            judged = judge_one(tok, model, record["prompt"], record["response"], cfg["judge_max_new_tokens"])
+            append_jsonl(
+                path,
+                {**judged,
+                 "xstest_id": record["xstest_id"]}
+            )
 
 if __name__ == "__main__":
     main()

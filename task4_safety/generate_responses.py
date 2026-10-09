@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import pandas as pd
+import tqdm
 
 from common.data import load_yaml, repo_path
 from common.generation import batch_generate
+from common.logging_utils import append_jsonl, save_json
 from common.models import load_policy, load_tokenizer
 
 
@@ -63,9 +66,18 @@ def main():
     cfg = load_yaml(args.config)
     print("Policies:", list(policy_specs(cfg)))
     print("XSTest rows:", len(load_xstest(cfg)))
-    raise NotImplementedError(
-        "TODO(student): call generate_for_policy for SFT/DPO/PPO/GRPO, save common deterministic responses, and preserve the fixed prompt order."
-    )
+    
+    for policy in cfg["policies"].keys():
+        print(f"Generating for: {policy}")
+        records = generate_for_policy(cfg, policy)
+        
+        path = Path(cfg["results_dir"]) / "task4_safety" / f"generated_{policy}.jsonl"
+        path.unlink(missing_ok=True)
+        for record in tqdm.tqdm(records, desc="Saving"):
+            append_jsonl(
+                path,
+                record
+            )
 
 
 if __name__ == "__main__":
