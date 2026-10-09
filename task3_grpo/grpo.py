@@ -12,8 +12,13 @@ def group_relative_advantages(rewards: torch.Tensor, group_ids: torch.Tensor, ep
     Validate this implementation against the group-relative definition in the assignment manual.
     """
     # Starter implementation: students must validate the grouping logic carefully.
-    mean = rewards.mean()
-    std = rewards.std(unbiased=False).clamp_min(eps)
+    # correction is that mean and std should be a/c to group_ids
+    mean = torch.empty_like(rewards)
+    std = torch.empty_like(rewards)
+    for gid in torch.unique(group_ids):
+        this_group = group_ids == gid
+        mean[this_group] = rewards[this_group].mean()
+        std[this_group] = rewards[this_group].std(unbiased=False).clamp_min(eps)
     return (rewards - mean) / std
 
 
