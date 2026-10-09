@@ -90,6 +90,8 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
     timer = wall_timer()
     best_loss = torch.inf
     total_generated_tokens = 0.
+    
+    torch.cuda.reset_peak_memory_stats()
 
     for upd in tqdm.trange(cfg["updates"], desc="PPO Updates"):
         shuffled = torch.randperm(len(bundle["prompt_rows"]), generator=shuffle_generator)
@@ -273,7 +275,7 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
                 "rollout_mean_length": mean_response_length(generation["response_mask"]),
                 "rollout_std_length": float(generation["response_mask"].sum(-1).float().std().item()),
                 "wall_time": wall_time,
-                # TODO: peak VRAM
+                "peak_VRAM_GiB": torch.cuda.max_memory_allocated() / (1024**3),
                 "update_generated_tokens": generated_tokens,
                 "total_generated_tokens": total_generated_tokens,
             }
