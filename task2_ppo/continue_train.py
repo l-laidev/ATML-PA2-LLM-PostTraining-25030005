@@ -184,6 +184,7 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
         advantages = normalize_advantages(advantages, generation["response_mask"])
 
         logged_rewards = None
+        logged_shaped_rewards = None
         logged_kl_from_ref = None
         logged_policy_loss = None
         logged_value_loss = None
@@ -244,8 +245,8 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
                     )
                     bundle["policy"].train()
 
-                    # TODO: shaped reward or task reward?
                     logged_rewards = task_rewards.mean().item()
+                    logged_shaped_rewards = rollout_rewards.mean().item()
                     logged_kl_from_ref = sampled_kl(new_policy_logp, ref_logp, generation["response_mask"]).item()
                     logged_policy_loss = policy_loss.item()
                     logged_value_loss = value_loss.item()
@@ -265,7 +266,8 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
             training_results_path,
             {
                 "update": upd,
-                "mean_reward": logged_rewards,
+                "mean_task_reward": logged_rewards,
+                "mean_shaped_reward": logged_shaped_rewards,
                 "KL_from_ref": logged_kl_from_ref,
                 "policy_loss": logged_policy_loss,
                 "value_loss": logged_value_loss,
