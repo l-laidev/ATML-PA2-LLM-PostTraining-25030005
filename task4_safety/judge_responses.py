@@ -116,10 +116,13 @@ def main():
         rows = read_jsonl(args.input)
         print("Input rows:", len(rows))
     
+    base = Path(cfg["results_dir"]) / "task4_safety"
     for policy in cfg["policies"].keys():
         print(f"Judging: {policy}")
-        path = Path(cfg["results_dir"]) / "task4_safety" / f"judged_{policy}.jsonl"
+        path = base / f"judged_{policy}.jsonl"
         path.unlink(missing_ok=True)
+        
+        rows = rows if args.input else read_jsonl(base / f"safety_results_{policy}.json")
         
         for record in tqdm.tqdm(rows, desc="Judging with AI"):
             judged = judge_one(tok, model, record["prompt"], record["response"], cfg["judge_max_new_tokens"])
