@@ -56,7 +56,7 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
     rm_model, rm_tokenizer = cfg["reward_model"], cfg["reward_tokenizer"]
     optimizer = cfg["optimizer"]
     
-    training_results_path = Path(f"{cfg['results_dir']/{run_name}.json}")
+    training_results_path = Path(cfg['results_dir']) / f"{run_name}.json"
     training_results_path.unlink(missing_ok=True)
     
     shuffle_generator = torch.Generator().manual_seed(6304)
@@ -69,7 +69,7 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
     for upd in tqdm.trange(cfg["updates"], desc="GRPO Updates"):
         shuffled = torch.randperm(len(prompts), generator=shuffle_generator)
         shuffled = shuffled[:cfg["prompts_per_update"]]
-        group_ids = list(range(shuffled))
+        group_ids = torch.arange(cfg["prompts_per_update"], device=shuffled.device)
         
         # [P1, P2] -> [P1, P1, P2, P2]
         shuffled = torch.repeat_interleave(shuffled, cfg["num_generations"])

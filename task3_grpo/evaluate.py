@@ -33,10 +33,10 @@ def main():
     args = ap.parse_args()
     bundle = load_evaluation_bundle(args.config, args.adapter)
     
+    cfg = bundle["cfg"]
     results_path = Path(cfg["results_dir"]) / f"{args.name}-heldout-eval.json"
     results_path.unlink(missing_ok=True)
     
-    cfg = bundle["cfg"]
     policy, tokenizer = bundle["policy"], bundle["tokenizer"]
     rm_model, rm_tokenizer = bundle["reward"]
     eval_prompts = bundle["rows"]
