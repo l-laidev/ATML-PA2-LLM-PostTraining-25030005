@@ -3,9 +3,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from pandas import read_json
 from common.data import load_yaml
-from common.logging_utils import save_json
+from common.logging_utils import load_json, save_json
 
 
 def main():
@@ -22,7 +21,7 @@ def main():
         
         for dataset in ["gsm", "transfer"]:
             path = base / f"eval-{policy}-{dataset}.json"
-            results[policy][dataset] = read_json(path)
+            results[policy][dataset] = load_json(path)
     
     # win rate, exact RLVR reward, mean length, std length, verifier-judge agree/disagreements
     metrics = list(results["sft"]["gsm"].keys())

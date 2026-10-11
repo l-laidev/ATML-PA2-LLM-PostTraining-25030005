@@ -71,7 +71,7 @@ def main():
                     policy,
                     tokenizer,
                     [row["message"]],
-                    max_prompt_length=None,
+                    max_prompt_length=256,  # based on PPO and GRPO's config
                     max_new_tokens=cfg["math_max_new_tokens"],
                     temperature=cfg["generation"]["temperature"],
                     top_p=cfg["generation"]["top_p"],
@@ -137,6 +137,7 @@ def main():
             {
                 "win_rate": win_rate,  # not interpret for SFT
                 "mean_exact_reward": total_vr,
+                "format_compliance": format_complied,
                 "mean_length": mean_res_len,
                 "std_length": std_res_len,
                 "verifier-judge-agreement": num_agreed,  # not interpret for SFT
