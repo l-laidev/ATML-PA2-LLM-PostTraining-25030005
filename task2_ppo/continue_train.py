@@ -83,7 +83,7 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
     if token_budget is not None:
         cfg["generated_token_budget"] = token_budget
 
-    training_results_path = Path(f"{cfg['results_dir']}/{run_name}.json")
+    training_results_path = repo_path(f"{cfg['results_dir']}/{run_name}.json")
     training_results_path.unlink(missing_ok=True)
 
     shuffle_generator = torch.Generator().manual_seed(6304)

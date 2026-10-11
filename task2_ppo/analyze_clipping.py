@@ -101,7 +101,7 @@ def main():
     prompts = read_jsonl(cfg["paths"]["rl_prompt_eval"])
     device = next(bundle["policy"].parameters()).device
 
-    geometric_results_path = Path(f"{cfg['results_dir']}/geometric-clipping-study.json")
+    geometric_results_path = repo_path(f"{cfg['results_dir']}/geometric-clipping-study.json")
     geometric_results_path.unlink(missing_ok=True)
 
     for eps in (t := tqdm(cfg["clip_values"])):

@@ -56,7 +56,7 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
     rm_model, rm_tokenizer = cfg["reward_model"], cfg["reward_tokenizer"]
     optimizer = cfg["optimizer"]
     
-    training_results_path = Path(cfg['results_dir']) / f"{run_name}.json"
+    training_results_path = repo_path(cfg['results_dir']) / f"{run_name}.json"
     training_results_path.unlink(missing_ok=True)
     
     shuffle_generator = torch.Generator().manual_seed(6304)

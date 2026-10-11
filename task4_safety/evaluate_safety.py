@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 import tqdm
-from common.data import load_yaml, read_jsonl
+from common.data import load_yaml, read_jsonl, repo_path
 from common.logging_utils import save_json
 
 
@@ -27,7 +27,7 @@ def main():
         return counts, rates
     
     for policy in cfg["policies"].keys():
-        base = Path(cfg["results_dir"]) / "task4_safety"
+        base = repo_path(cfg["results_dir"]) / "task4_safety"
         path = base / f"safety_results_{policy}.json"
         path.unlink(missing_ok=True)
         

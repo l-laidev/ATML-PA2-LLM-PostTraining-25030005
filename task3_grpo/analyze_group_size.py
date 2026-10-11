@@ -6,7 +6,7 @@ import itertools
 from pathlib import Path
 import numpy as np
 
-from common.data import load_yaml, read_jsonl
+from common.data import load_yaml, read_jsonl, repo_path
 from common.logging_utils import append_jsonl
 
 
@@ -76,7 +76,7 @@ def main():
             "advantage_variance": group_rel_var.tolist(),
         }
     
-    results_path = Path(cfg["results_dir"]) / "group-size.json"
+    results_path = repo_path(cfg["results_dir"]) / "group-size.json"
     results_path.unlink(missing_ok=True)
     for k in cfg["group_sizes"]:
         regrouped = regroup_equal_generation_budget(by_prompt, k=k)

@@ -90,7 +90,7 @@ def run_training(config_path: str, run_name: str, dataset_path: str | None = Non
     output = repo_path(output_path or cfg["standard_output"])
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    save_path = cfg["results_dir"] / f"{run_name}-logs.jsonl"
+    save_path = repo_path(cfg["results_dir"]) / f"{run_name}-logs.jsonl"
     save_path.unlink(missing_ok=True)
     
     best_loss = float("inf")
@@ -118,7 +118,7 @@ def run_training(config_path: str, run_name: str, dataset_path: str | None = Non
             if acc_steps == cfg["grad_accum_steps"]:
                 loss, norm = step(loss, bundle, acc_steps)
                 acc_steps = 0
-                log(loss, norm, cur_diagnostics)
+                log(save_path, loss, norm, cur_diagnostics)
         
         if acc_steps != 0:  # leftover steps
             loss, norm = step(loss, bundle, acc_steps)

@@ -71,7 +71,7 @@ def main():
         print(f"Generating for: {policy}")
         records = generate_for_policy(cfg, policy)
         
-        path = Path(cfg["results_dir"]) / "task4_safety" / f"generated_{policy}.jsonl"
+        path = repo_path(cfg["results_dir"]) / "task4_safety" / f"generated_{policy}.jsonl"
         path.unlink(missing_ok=True)
         for record in tqdm.tqdm(records, desc="Saving"):
             append_jsonl(

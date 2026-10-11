@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from common.data import load_yaml
+from common.data import load_yaml, repo_path
 from common.logging_utils import load_json, save_json
 
 
@@ -13,7 +13,7 @@ def main():
     args = ap.parse_args()
     cfg = load_yaml(args.config)
     
-    base = Path(cfg["results_dir"]) / "task5_feedback"
+    base = repo_path(cfg["results_dir"]) / "task5_feedback"
     
     results = {}
     for policy in ["sft", "rlvr", "rlaif"]:

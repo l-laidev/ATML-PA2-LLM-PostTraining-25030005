@@ -6,7 +6,7 @@ from pathlib import Path
 
 import tqdm
 
-from common.data import load_yaml, read_jsonl
+from common.data import load_yaml, read_jsonl, repo_path
 from common.logging_utils import append_jsonl
 from task5_feedback.rlvr import exact_reward
 from task5_feedback.rlaif import PairwiseAIJudge
@@ -49,7 +49,7 @@ def main():
         ("clean_correct", "gold_distractor_wrong_final"),  # distractor
     ]
     
-    base = Path(cfg["results_dir"]) / "task5_feedback"
+    base = repo_path(cfg["results_dir"]) / "task5_feedback"
     judge = PairwiseAIJudge(cfg, base / f"eval-diagnostic-judge-cache.json")
     save_path = base / "perturbations.jsonl"
     save_path.unlink(missing_ok=True)

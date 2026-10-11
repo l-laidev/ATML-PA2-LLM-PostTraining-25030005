@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 
-from common.data import load_yaml, prompt_messages, read_jsonl
+from common.data import load_yaml, prompt_messages, read_jsonl, repo_path
 from common.generation import batch_generate, response_token_logprobs, score_reward_pairs
 from common.logging_utils import append_jsonl, save_json
 from common.metrics import mean_response_length, sample_entropy, sampled_kl
@@ -32,8 +32,8 @@ def main():
     args = ap.parse_args()
     bundle = load_evaluation_bundle(args.config, args.adapter)
     
-    eval_results_path = Path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}.json"
-    evidence_path = Path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}-evidence.jsonl"
+    eval_results_path = repo_path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}.json"
+    evidence_path = repo_path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}-evidence.jsonl"
     eval_results_path.unlink(missing_ok=True)
     evidence_path.unlink(missing_ok=True)
 

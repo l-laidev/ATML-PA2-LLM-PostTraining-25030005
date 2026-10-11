@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 import tqdm
 
-from common.data import load_yaml, prompt_messages, read_jsonl
+from common.data import load_yaml, prompt_messages, read_jsonl, repo_path
 from common.generation import batch_generate
 from common.logging_utils import save_json
 from common.metrics import mean_response_length
@@ -82,7 +82,7 @@ def main():
                 "gold_final": row["gold_final"],
             }
     
-    judge = PairwiseAIJudge(cfg, Path(cfg["results_dir"]))
+    judge = PairwiseAIJudge(cfg, repo_path(cfg["results_dir"]))
     for policy_name in responses.keys():
         win_rate = 0.
         total_vr = 0.
@@ -130,7 +130,7 @@ def main():
         num_agreed /= total
         num_disagreed /= total
         
-        path = Path(cfg["results_dir"]) / "task5_feedback" / f"eval-{policy_name}-{args.dataset}.json"
+        path = repo_path(cfg["results_dir"]) / "task5_feedback" / f"eval-{policy_name}-{args.dataset}.json"
         path.unlink(missing_ok=True)
         save_json(
             path,

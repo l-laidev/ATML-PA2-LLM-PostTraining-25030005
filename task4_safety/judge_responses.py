@@ -9,7 +9,7 @@ import torch
 import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
-from common.data import load_yaml, read_jsonl
+from common.data import load_yaml, read_jsonl, repo_path
 from common.logging_utils import append_jsonl, save_json
 from common.models import resolve_dtype
 
@@ -116,7 +116,7 @@ def main():
         rows = read_jsonl(args.input)
         print("Input rows:", len(rows))
     
-    base = Path(cfg["results_dir"]) / "task4_safety"
+    base = repo_path(cfg["results_dir"]) / "task4_safety"
     for policy in cfg["policies"].keys():
         print(f"Judging: {policy}")
         path = base / f"judged_{policy}.jsonl"

@@ -38,8 +38,8 @@ def main():
     args = ap.parse_args()
     bundle = load_evaluation_bundle(args.config, args.adapter)
 
-    eval_results_path = Path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}-evaluation.json"
-    evidence_path = Path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}-evidence.jsonl"
+    eval_results_path = repo_path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}-evaluation.json"
+    evidence_path = repo_path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}-evidence.jsonl"
     eval_results_path.unlink(missing_ok=True)
     evidence_path.unlink(missing_ok=True)
     
