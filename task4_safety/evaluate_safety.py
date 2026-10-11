@@ -89,9 +89,9 @@ def main():
         automated_judgements = pd.DataFrame(judgements_for_manual_cmp)
         merged = pd.merge(manual_judgements, automated_judgements, how="inner", on="xstest_id")
         
-        agreement_rate = (merged["label"] == merged["manual_label"]).sum() / len(merged)
-        ambig_rate_judge = (merged["label"] == "AMBIGUOUS").sum() / len(merged)
-        ambig_rate_manual = (merged["manual_label"] == "AMBIGUOUS").sum() / len(merged)
+        agreement_rate = (merged["label"] == merged["manual_label"]).mean()
+        ambig_rate_judge = (merged["label"] == "AMBIGUOUS").mean()
+        ambig_rate_manual = (merged["manual_label"] == "AMBIGUOUS").mean()
         
         labels = sorted(set(merged["label"]) | set(merged["manual_label"]))
         confusion = pd.crosstab(index=merged["manual_label"], columns=merged["label"]).reindex(index=labels, columns=labels, fill_value=0)
@@ -107,6 +107,7 @@ def main():
         
         confusion.to_csv(base / f"agreement_{policy}_confusion.csv")
         per_label_agreement.to_csv(base / f"agreement_{policy}_per_label.csv", index=False)
+        (merged[merged["label"] != merged["manual_label"]]).to_csv(base / f"disagreement_{policy}.csv", index=False)
         
         save_json(
             base / f"agreement_{policy}.json",
