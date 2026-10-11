@@ -8,7 +8,7 @@ import tqdm
 
 from common.data import load_yaml, read_jsonl
 from common.generation import batch_generate, response_token_logprobs, score_reward_pairs
-from common.logging_utils import save_json
+from common.logging_utils import append_jsonl, save_json
 from common.metrics import mean_response_length, sample_entropy, sampled_kl
 from common.models import load_policy, load_reward_model, load_tokenizer, reference_mode
 from task3_grpo.grpo import group_relative_advantages, mask_truncated_sequences
@@ -34,8 +34,10 @@ def main():
     bundle = load_evaluation_bundle(args.config, args.adapter)
     
     cfg = bundle["cfg"]
-    results_path = Path(cfg["results_dir"]) / f"{args.name}-heldout-eval.json"
+    results_path = Path(cfg["results_dir"]) / "held-out-evaluation" / f"{args.name}-heldout-eval.json"
+    evidence_path = Path(cfg["results_dir"]) / "held-out-evaluation" / f"{args.name}-evidence.jsonl"
     results_path.unlink(missing_ok=True)
+    evidence_path.unlink(missing_ok=True)
     
     policy, tokenizer = bundle["policy"], bundle["tokenizer"]
     rm_model, rm_tokenizer = bundle["reward"]
@@ -105,8 +107,21 @@ def main():
             total += 1
             
             all_lengths.extend(generation["response_lengths"])
+            
+            append_jsonl(
+                evidence_path,
+                {
+                    "prompt": prompts[0],
+                    "responses": generation["responses"],
+                    "task_reward": rewards.mean().item(),
+                    "within-group_std": rewards.std().item(),
+                    "num_uninfo": (rewards.std() < 1e-6).item(),
+                    "entropy": sample_entropy(new_logp, mask).item(),
+                    "kl_ref": sampled_kl(new_logp, ref_logp, mask).item(),
+                    "mean_len": mean_response_length(generation["response_mask"]),
+                }
+            )
     
-    # TODO: save examples
     save_json(
         results_path,
         {

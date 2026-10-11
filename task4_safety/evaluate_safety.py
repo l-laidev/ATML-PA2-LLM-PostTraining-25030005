@@ -85,9 +85,19 @@ def main():
             "category_level": counts_by_type}
         )
         
+        # qualitative evidence
+        evidence = {"prompt": [], "response": [], "xstest_id": []}
+        for id in combined:
+            data = combined[id]
+            evidence["xstest_id"].append(id)
+            evidence["prompt"].append(data["prompt"])
+            evidence["response"].append(data["response"])
+        
         manual_judgements = pd.read_csv(base / "manual_audit_ids.csv")
         automated_judgements = pd.DataFrame(judgements_for_manual_cmp)
+        evidence = pd.DataFrame(evidence)
         merged = pd.merge(manual_judgements, automated_judgements, how="inner", on="xstest_id")
+        merged = pd.merge(merged, evidence, how="left", on="xstest_id")
         
         agreement_rate = (merged["label"] == merged["manual_label"]).mean()
         ambig_rate_judge = (merged["label"] == "AMBIGUOUS").mean()

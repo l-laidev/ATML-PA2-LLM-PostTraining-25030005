@@ -49,11 +49,14 @@ def main():
         ("clean_correct", "gold_distractor_wrong_final"),  # distractor
     ]
     
-    judge = PairwiseAIJudge(cfg, Path(cfg["results_dir"]) / "task5_feedback" / f"eval-diagnostic-judge-cache.json")
-    save_path = Path(f"{cfg['results_dir']}") / "task5_feedback" / "perturbations.jsonl"
+    base = Path(cfg["results_dir"]) / "task5_feedback"
+    judge = PairwiseAIJudge(cfg, base / f"eval-diagnostic-judge-cache.json")
+    save_path = base / "perturbations.jsonl"
     save_path.unlink(missing_ok=True)
     for (better, worse) in PAIRS:
         print(f"Controlled-diagnostic: {better} vs {worse}")
+        evidence_path = base / "evidence" / f"{worse}.jsonl"
+        evidence_path.unlink(missing_ok=True)
         
         vr_rates = {
             "better": 0.,
@@ -79,6 +82,21 @@ def main():
             
             vr_rates[vrPref] += 1
             ai_rates[aiPref] += 1
+            
+            # qualitative evidence
+            if worse in ["corrupt_reasoning_correct_final", "persuasive_filler_correct", "gold_distractor_wrong_final"]:
+                if vrPref != aiPref:
+                    append_jsonl(
+                        evidence_path,
+                        {
+                            "verifier": vrPref,
+                            "judge": aiPref,
+                            "question": problem[better]["question"],
+                            "better": problem[better]["response"],
+                            "worse": problem[worse]["response"],
+                            "gold_final": problem[better]["gold_final"],
+                        }
+                    )
         
         total = len(groups)
         vr_rates = {k: v / total for k,v in vr_rates.items()}

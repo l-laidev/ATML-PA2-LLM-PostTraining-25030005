@@ -1,9 +1,10 @@
 from __future__ import annotations
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 from common.generation import batch_generate, response_sequence_logprobs, response_token_logprobs, score_reward_pairs
-from common.logging_utils import save_json
+from common.logging_utils import append_jsonl, save_json
 from common.metrics import mean_response_length, preference_accuracy, sampled_kl
 load_dotenv()
 
@@ -37,9 +38,14 @@ def main():
     args = ap.parse_args()
     bundle = load_evaluation_bundle(args.config, args.adapter)
 
+    eval_results_path = Path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}-evaluation.json"
+    evidence_path = Path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}-evidence.jsonl"
+    eval_results_path.unlink(missing_ok=True)
+    evidence_path.unlink(missing_ok=True)
+    
     def custom_collate(rows, tokenizer):
         chosen, rejected = make_collate(tokenizer, int(bundle["cfg"]["max_sequence_length"]))(rows)
-        return [r["prompt"] for r in rows], chosen, rejected
+        return list(map(lambda r: [{"role": "user", "content": r["prompt"]}], rows)), chosen, rejected
 
     reward_model, reward_tok = bundle["reward"][0], bundle["reward"][1]
     loader = torch.utils.data.DataLoader(
@@ -59,7 +65,7 @@ def main():
     batched_responses = []
     with torch.no_grad():
         with torch.inference_mode():
-            for prompt, chosen, rejected in tqdm.tqdm(loader, desc="Evaluating", total=len(loader)):
+            for prompts, chosen, rejected in tqdm.tqdm(loader, desc="Evaluating", total=len(loader)):
                 c = {k: v.to(bundle["policy"].device) for k, v in chosen.items()}
                 r = {k: v.to(bundle["policy"].device) for k, v in rejected.items()}
                 
@@ -97,7 +103,7 @@ def main():
                 generation = batch_generate(
                     bundle["policy"],
                     bundle["tokenizer"],
-                    prompt,
+                    prompts,
                     bundle["cfg"]["max_sequence_length"],
                     bundle["cfg"]["max_generation_tokens"],
                     bundle["cfg"]["generation"]["temperature"],
@@ -105,7 +111,7 @@ def main():
                     bundle["cfg"]["generation"]["do_sample"],
                 )
 
-                batched_prompts.append(list(map(lambda prompt: {"role": "user", "content": prompt}, prompt)))
+                batched_prompts.append(prompts)
                 batched_responses.append(bundle["tokenizer"].batch_decode(generation["response_ids"], skip_special_tokens=True))
                 mean_resp_len += mean_response_length(generation["response_mask"])
                 lengths.extend(generation["response_lengths"])
@@ -114,6 +120,20 @@ def main():
                 pref_acc += cur_pref_acc
                 KL_ref += cur_KL_ref.item()
                 total += 1
+                
+                for i in range(len(prompt)):
+                    ith_loss, ith_metrics = dpo_loss(policy_chosen[i], policy_rejected[i], ref_chosen[i], ref_rejected[i], bundle["cfg"]["beta"])
+                    append_jsonl(
+                        evidence_path,
+                        {
+                            "prompt": prompt[i][0]["content"],
+                            "response": generation["responses"][i],
+                            "pref_accuracy": preference_accuracy(policy_chosen[i], policy_rejected[i]),
+                            "KL_ref": 1/2 * (sampled_kl(policy_chosen_tok[i], ref_chosen_tok[i], c["response_mask"][i]) + sampled_kl(policy_rejected_tok[i], ref_rejected_tok[i], r["response_mask"][i])).item(),
+                            "DPO_loss": ith_loss.item(),
+                            "pref_accuracy_with_ref_margin": ith_metrics["preference_accuracy"].item(),
+                        }
+                    )
 
             
             score = 0.
@@ -124,7 +144,7 @@ def main():
                 total += 1
 
     save_json(
-        f"{bundle['cfg']['results_dir']}/{args.name}-evaluation.json",
+        eval_results_path,
         {
             "loss": loss / total if total > 0 else 0,
             "preference_accuracy": pref_acc / total if total > 0 else 0,

@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from common.data import load_yaml, read_jsonl
 from common.generation import batch_generate, response_token_logprobs, score_reward_pairs
-from common.logging_utils import save_json
+from common.logging_utils import append_jsonl, save_json
 from common.metrics import mean_response_length, sample_entropy, sampled_kl
 from common.models import load_policy, load_reward_model, load_tokenizer, reference_mode
 from task2_ppo.ppo import shaped_rewards
@@ -32,8 +32,10 @@ def main():
     args = ap.parse_args()
     bundle = load_evaluation_bundle(args.config, args.adapter)
     
-    eval_results_path = Path(bundle["cfg"]["results_dir"])
-    eval_results_path.parent.mkdir(parents=True, exist_ok=True)
+    eval_results_path = Path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}.json"
+    evidence_path = Path(bundle["cfg"]["results_dir"]) / "held-out-evaluation" / f"{args.name}-evidence.jsonl"
+    eval_results_path.unlink(missing_ok=True)
+    evidence_path.unlink(missing_ok=True)
 
     logged_reward = 0.
     logged_rollout_reward = 0.
@@ -102,12 +104,23 @@ def main():
             lengths.extend(generation["response_lengths"])
             all_rewards.append(rollout_rewards.mean().item())
             n_total += 1
+            
+            append_jsonl(
+                evidence_path,
+                {
+                    "prompt": row["prompt"],
+                    "response": generation["responses"][0],
+                    "task_reward": task_rewards.mean().item(),
+                    "rollout_reward": rollout_rewards.mean().item(),
+                    "kl_ref": sampled_kl(cur_logp, ref_logp, generation["response_mask"]).item(),
+                }
+            )
     
     # will be defined in the report in terms of variation in rewards, KL divergence and entropy
     logged_stability = torch.std(torch.tensor(all_rewards)).item()
 
     save_json(
-        f"{bundle['cfg']['results_dir']}/held-out-evaluation/{args.name}",
+        eval_results_path,
         {
             "mean_task_reward": logged_reward / n_total,
             "mean_rollout_reward": logged_rollout_reward / n_total,
