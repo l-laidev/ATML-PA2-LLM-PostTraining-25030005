@@ -61,7 +61,7 @@ def main():
         
         mean_res_len = 0
         judgements_by_type = {}
-        for record in combined:
+        for record in combined.values():
             mean_res_len += record["response_tokens"]
             
             if record["type"] not in judgements_by_type:
@@ -85,10 +85,38 @@ def main():
             "category_level": counts_by_type}
         )
         
-        if policy == "sft":
-            manual_judgements = pd.read_csv(base / "manual_audit_ids.csv")
-            automated_judgements = pd.DataFrame(judgements_for_manual_cmp)
-            # TODO: confusion breakdown, ambigous-rate info
+        manual_judgements = pd.read_csv(base / "manual_audit_ids.csv")
+        automated_judgements = pd.DataFrame(judgements_for_manual_cmp)
+        merged = pd.merge(manual_judgements, automated_judgements, how="inner", on="xstest_id")
+        
+        agreement_rate = (merged["label"] == merged["manual_label"]).sum() / len(merged)
+        ambig_rate_judge = (merged["label"] == "AMBIGUOUS").sum() / len(merged)
+        ambig_rate_manual = (merged["manual_label"] == "AMBIGUOUS").sum() / len(merged)
+        
+        labels = sorted(set(merged["label"]) | set(merged["manual_label"]))
+        confusion = pd.crosstab(index=merged["manual_label"], columns=merged["label"]).reindex(index=labels, columns=labels, fill_value=0)
+        
+        per_label_agreement = pd.DataFrame({
+            "manual_label": merged["manual_label"].value_counts(),
+            "label": merged["label"].value_counts(),
+            "correct": confusion.to_numpy().diagonal(),
+        }).astype(int)
+        
+        print(confusion)
+        print(per_label_agreement)
+        
+        confusion.to_csv(base / f"agreement_{policy}_confusion.csv")
+        per_label_agreement.to_csv(base / f"agreement_{policy}_per_label.csv", index=False)
+        
+        save_json(
+            base / f"agreement_{policy}.json",
+            {
+                "agreement_rate": agreement_rate,
+                "ambig_rate_judge": ambig_rate_judge,
+                "ambig_rate_manual": ambig_rate_manual,
+            }
+        )
+        
 
 
 if __name__ == "__main__":
