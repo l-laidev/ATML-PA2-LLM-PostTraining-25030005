@@ -4,7 +4,7 @@ import argparse
 
 import torch
 import tqdm
-from common.data import encode_prompt_response, load_yaml, pad_batch, preference_responses, prompt_messages_from_preference, read_jsonl, repo_path
+from common.data import encode_prompt_response, load_yaml, pad_batch, preference_responses, prompt_messages, prompt_messages_from_preference, read_jsonl, repo_path
 from common.generation import batch_generate, response_sequence_logprobs
 from common.logging_utils import save_json
 from common.metrics import mean_response_length, preference_accuracy, word_limit_compliance
@@ -27,7 +27,7 @@ def stratified_evaluate(stratified, tokenizer, model, cfg):
         generation = batch_generate(
             model,
             tokenizer,
-            [prompt],
+            prompt,
             cfg["max_sequence_length"],
             cfg["max_generation_tokens"],
             cfg["generation"]["temperature"],
@@ -35,10 +35,9 @@ def stratified_evaluate(stratified, tokenizer, model, cfg):
             cfg["generation"]["do_sample"],
         )
 
-        generation_text = tokenizer.batch_decode(generation["response_ids"], skip_special_tokens=True)
         has_complied = 0
         for i in range(len(prompt)):
-            cur_has_complied = word_limit_compliance(prompt, generation_text)
+            cur_has_complied = word_limit_compliance(prompt[i][0]["content"], generation["responses"][i])
             cur_has_complied = 0 if cur_has_complied is None else int(cur_has_complied)
             has_complied += cur_has_complied
         has_complied /= len(prompt)
@@ -107,18 +106,25 @@ def main():
 
         def custom_collate(rows, tokenizer):
             chosen, rejected = make_collate(tokenizer, int(cfg["max_sequence_length"]))(rows)
-            return [r["prompt"] for r in rows], chosen, rejected, [r["length_stratum"] for r in rows]
+            return list(map(prompt_messages, rows)), chosen, rejected, [r["length_stratum"] for r in rows]
+        
         loader = torch.utils.data.DataLoader(
             stratified,
             batch_size=8,
             shuffle=False,
             collate_fn=lambda rows: custom_collate(rows, tokenizer)
         )
-        
         model = load_policy(cfg, cfg["standard_output"], trainable=False, fresh_lora=False)
         results = stratified_evaluate(loader, tokenizer, model, cfg)
         save_json(f"{cfg['results_dir']}/len-study-base.json", results)
         
+        # recreate to ensure same conditions
+        loader = torch.utils.data.DataLoader(
+            stratified,
+            batch_size=8,
+            shuffle=False,
+            collate_fn=lambda rows: custom_collate(rows, tokenizer)
+        )
         model = load_policy(cfg, out / "length-balanced", trainable=False, fresh_lora=False)
         results = stratified_evaluate(loader, tokenizer, model, cfg)
         save_json(f"{cfg['results_dir']}/len-study-trained.json", results)

@@ -98,6 +98,8 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
         shuffled = shuffled[:cfg["prompts_per_update"]]
         prompts = bundle["prompt_rows"][shuffled]
         
+        prompts = list(map(prompt_messages, prompts))
+        
         generation = batch_generate(
             bundle["policy"],
             bundle["tokenizer"],

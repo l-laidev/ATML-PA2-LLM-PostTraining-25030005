@@ -13,7 +13,7 @@ from torch.optim import AdamW
 
 import tqdm
 
-from common.data import load_yaml, read_jsonl, repo_path
+from common.data import load_yaml, prompt_messages, read_jsonl, repo_path
 from common.logging_utils import append_jsonl, set_seed, wall_timer
 from common.models import load_policy, load_reward_model, load_tokenizer, reference_mode, trainable_parameters
 
@@ -77,6 +77,7 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
         group_ids = torch.repeat_interleave(group_ids, cfg["num_generations"])
         
         shuffled_prompts = prompts[shuffled]
+        shuffled_prompts = list(map(prompt_messages, shuffled_prompts))
         
         generation = batch_generate(
             policy,
@@ -89,7 +90,6 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
             cfg["generation"]["do_sample"],
         )
         
-        # TODO: should 1 group be counted for each rollout?
         generated_tokens = int(generation["response_mask"].sum().item())
         if "generated_token_budget" in cfg and total_generated_tokens+generated_tokens > cfg["generated_token_budget"]:
             break

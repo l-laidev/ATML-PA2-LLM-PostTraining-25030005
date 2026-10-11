@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 import tqdm
 
-from common.data import load_yaml, read_jsonl
+from common.data import load_yaml, prompt_messages, read_jsonl
 from common.generation import batch_generate, response_token_logprobs, score_reward_pairs
 from common.logging_utils import append_jsonl, save_json
 from common.metrics import mean_response_length, sample_entropy, sampled_kl
@@ -56,6 +56,7 @@ def main():
     with torch.no_grad(), torch.inference_mode():
         for cur_prompt in tqdm.tqdm(eval_prompts, desc="Evaluating"):
             prompts = [cur_prompt["prompt"] for _ in range(cfg["num_generations"])]
+            prompts = list(map(prompt_messages, prompts))
             
             generation = batch_generate(
                 policy,
@@ -111,7 +112,7 @@ def main():
             append_jsonl(
                 evidence_path,
                 {
-                    "prompt": prompts[0],
+                    "prompt": cur_prompt["prompt"],
                     "responses": generation["responses"],
                     "task_reward": rewards.mean().item(),
                     "within-group_std": rewards.std().item(),

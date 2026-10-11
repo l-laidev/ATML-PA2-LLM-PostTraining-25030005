@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 import tqdm
 
-from common.data import load_yaml, read_jsonl
+from common.data import load_yaml, prompt_messages, read_jsonl
 from common.generation import batch_generate
 from common.logging_utils import save_json
 from common.metrics import mean_response_length
@@ -70,7 +70,7 @@ def main():
                 "generation": batch_generate(
                     policy,
                     tokenizer,
-                    [row["message"]],
+                    [prompt_messages(row)],
                     max_prompt_length=256,  # based on PPO and GRPO's config
                     max_new_tokens=cfg["math_max_new_tokens"],
                     temperature=cfg["generation"]["temperature"],

@@ -13,7 +13,7 @@ import argparse
 import torch
 import tqdm
 
-from common.data import encode_prompt_response, load_yaml, pad_batch, read_jsonl, repo_path
+from common.data import encode_prompt_response, load_yaml, pad_batch, prompt_messages, read_jsonl, repo_path
 from common.models import load_policy, load_reward_model, load_tokenizer, reference_mode
 from task1_dpo.dpo import dpo_loss
 from task1_dpo.train import make_collate
@@ -45,7 +45,7 @@ def main():
     
     def custom_collate(rows, tokenizer):
         chosen, rejected = make_collate(tokenizer, int(bundle["cfg"]["max_sequence_length"]))(rows)
-        return list(map(lambda r: [{"role": "user", "content": r["prompt"]}], rows)), chosen, rejected
+        return list(map(prompt_messages, rows)), chosen, rejected
 
     reward_model, reward_tok = bundle["reward"][0], bundle["reward"][1]
     loader = torch.utils.data.DataLoader(
@@ -112,7 +112,7 @@ def main():
                 )
 
                 batched_prompts.append(prompts)
-                batched_responses.append(bundle["tokenizer"].batch_decode(generation["response_ids"], skip_special_tokens=True))
+                batched_responses.append(generation["responses"])
                 mean_resp_len += mean_response_length(generation["response_mask"])
                 lengths.extend(generation["response_lengths"])
 

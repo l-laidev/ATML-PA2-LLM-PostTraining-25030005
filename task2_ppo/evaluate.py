@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 
-from common.data import load_yaml, read_jsonl
+from common.data import load_yaml, prompt_messages, read_jsonl
 from common.generation import batch_generate, response_token_logprobs, score_reward_pairs
 from common.logging_utils import append_jsonl, save_json
 from common.metrics import mean_response_length, sample_entropy, sampled_kl
@@ -50,7 +50,7 @@ def main():
             generation = batch_generate(
                 bundle["policy"],
                 bundle["tokenizer"],
-                [row["prompt"]],
+                [prompt_messages(row)],
                 bundle["cfg"]["max_prompt_length"],
                 bundle["cfg"]["max_response_length"],
                 bundle["cfg"]["generation"]["temperature"],
@@ -80,7 +80,7 @@ def main():
             task_rewards = score_reward_pairs(
                 bundle["reward"][0],  # model
                 bundle["reward"][1],  # tokenizer
-                [row["prompt"]],
+                [prompt_messages(row)],
                 generation["responses"],
                 bundle["cfg"]["reward_max_length"]
             )
