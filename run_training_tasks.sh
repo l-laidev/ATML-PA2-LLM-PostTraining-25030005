@@ -1,3 +1,5 @@
+trap 'exit 130' INT
+
 echo 'DPO Tasks'
 uv run python -m task1_dpo.train --config configs/dpo.yaml --run-name standard
 uv run python -m task1_dpo.ablate_beta --config configs/dpo.yaml

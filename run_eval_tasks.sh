@@ -1,3 +1,5 @@
+trap 'exit 130' INT
+
 echo 'DPO Evaluations'
 uv run python -m task1_dpo.evaluate --config configs/dpo.yaml --adapter outputs/task1_dpo/standard/standard_model --name standard
 
