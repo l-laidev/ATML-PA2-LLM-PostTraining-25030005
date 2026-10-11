@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dotenv import load_dotenv
 
-from common.generation import batch_generate, response_sequence_logprobs, score_reward_pairs
+from common.generation import batch_generate, response_sequence_logprobs, response_token_logprobs, score_reward_pairs
 from common.logging_utils import save_json
 from common.metrics import mean_response_length, preference_accuracy, sampled_kl
 load_dotenv()
@@ -62,20 +62,36 @@ def main():
             for prompt, chosen, rejected in tqdm.tqdm(loader, desc="Evaluating", total=len(loader)):
                 c = {k: v.to(bundle["policy"].device) for k, v in chosen.items()}
                 r = {k: v.to(bundle["policy"].device) for k, v in rejected.items()}
+                
+                c_prompt_width = c["attention_mask"].sum(dim=1) - c["response_mask"].sum(dim=1)
+                r_prompt_width = r["attention_mask"].sum(dim=1) - r["response_mask"].sum(dim=1)
+                
+                c_starts = (c["response_mask"] != 1).sum(dim=1)
+                c_idxs = torch.arange(c_starts.shape[0])
+                c_response_ids = c["input_ids"][c_idxs, c_starts[c_idxs]]
+                
+                r_starts = (r["response_mask"] != 1).sum(dim=1)
+                r_idxs = torch.arange(r_starts.shape[0])
+                r_response_ids = r["input_ids"][r_idxs, r_starts[r_idxs]]
 
                 with reference_mode(bundle["policy"]):
                     ref_chosen, _, _ = response_sequence_logprobs(bundle["policy"], c)
                     ref_rejected, _, _ = response_sequence_logprobs(bundle["policy"], r)
+                    
+                    ref_chosen_tok, _ = response_token_logprobs(bundle["policy"], c["input_ids"], c["attention_mask"], c_prompt_width, c_response_ids)
+                    ref_rejected_tok, _ = response_token_logprobs(bundle["policy"], r["input_ids"], r["attention_mask"], r_prompt_width, r_response_ids)
 
                 policy_chosen, _, _ = response_sequence_logprobs(bundle["policy"], c)
                 policy_rejected, _, _ = response_sequence_logprobs(bundle["policy"], r)
+                
+                policy_chosen_tok, _, _ = response_token_logprobs(bundle["policy"], c["input_ids"], c["attention_mask"], c_prompt_width, c_response_ids)
+                policy_rejected_tok, _, _ = response_token_logprobs(bundle["policy"], r["input_ids"], r["attention_mask"], r_prompt_width, r_response_ids)
 
                 cur_loss, _ = dpo_loss(policy_chosen, policy_rejected, ref_chosen, ref_rejected, bundle["cfg"]["beta"])
                 cur_pref_acc = preference_accuracy(policy_chosen, policy_rejected)
-                # TODO: check KL and log-proba
                 cur_KL_ref = 1/2 * (
-                      sampled_kl(policy_chosen, ref_chosen, torch.ones_like(policy_chosen))
-                    + sampled_kl(policy_rejected, ref_rejected, torch.ones_like(policy_rejected))
+                      sampled_kl(policy_chosen_tok, ref_chosen_tok, c["response_mask"])
+                    + sampled_kl(policy_rejected_tok, ref_rejected_tok, r["response_mask"])
                 )
 
                 generation = batch_generate(

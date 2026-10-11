@@ -18,10 +18,5 @@ def main():
         print(f"Launching DPO training for beta={beta}...")
         run_training(args.config, f"beta-{beta}", None, out / f"beta-{beta}", beta, cfg["short_ablation_examples"])
 
-    # raise NotImplementedError(
-    #     "TODO(student): launch matched DPO beta forks from the original policy initialization and evaluate them under a common protocol."
-    # )
-
-
 if __name__ == "__main__":
     main()
