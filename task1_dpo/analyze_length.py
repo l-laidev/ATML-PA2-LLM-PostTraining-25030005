@@ -81,25 +81,7 @@ def main():
 
 
     out = repo_path(cfg["length_output"])
-    run_training(args.config, "length-balanced", cfg["paths"]["dpo_length_train"], out / "length-balanced", cfg["beta"])
-
-# {"source_split": "test_prefs", "source_index": 1858, 
-# "prompt_id": "455c67a88d63f1db574d7117e7cc1dcd8aec226536d9f041cee97b2462ff7473", 
-# "prompt": "Given the text: Our gentle, step-by-step method of instruction is designed to help children (and sometimes adults) bloom creatively while learning the fundamentals of ART, WRITING or SPANISH in a calm, friendly environment; free of judgment and competition.\nAfterschool Art and More is a LOCALLY OWNED & OPERATED grassroots organization, dedicated to providing our community with high quality, personal, and professional enrichment programming in ART, WRITING and SPANISH.\nYour support is vital and appreciated.\nHow does Afterschool Art and More contribute to the community as a grassroots organization?", 
-# "chosen": [{"content": "Given the text: Our gentle, step-by-step method of instruction is designed to help children (and sometimes adults) bloom creatively while learning the fundamentals of ART, WRITING or SPANISH in a calm, friendly environment; free of judgment and competition.\nAfterschool Art and More is a LOCALLY OWNED & OPERATED grassroots organization, dedicated to providing our community with high quality, personal, and professional enrichment programming in ART, WRITING and SPANISH.\nYour support is vital and appreciated.\nHow does Afterschool Art and More contribute to the community as a grassroots organization?", 
-#           "role": "user"}, 
-#           {"content": "Afterschool Art and More contributes to the community as a grassroots organization by focusing on providing high-quality, personal, and professional enrichment programs in art, writing, and Spanish for children and adults. They create a calm, friendly environment free of judgment and competition, which encourages creative growth and learning. As a locally owned and operated business, they are dedicated to serving their community's needs, and support from the community is vital for their continued work and success.", 
-#           "role": "assistant"}], 
-# "rejected": [{"content": "Given the text: Our gentle, step-by-step method of instruction is designed to help children (and sometimes adults) bloom creatively while learning the fundamentals of ART, WRITING or SPANISH in a calm, friendly environment; free of judgment and competition.\nAfterschool Art and More is a LOCALLY OWNED & OPERATED grassroots organization, dedicated to providing our community with high quality, personal, and professional enrichment programming in ART, WRITING and SPANISH.\nYour support is vital and appreciated.\nHow does Afterschool Art and More contribute to the community as a grassroots organization?", 
-#           "role": "user"}, 
-#           {"content": "Afterschool Art and More contributes to the community as a grassroots organization by providing high quality, personal, and professional enrichment programming in ART, WRITING, and SPANISH. By offering a calm, friendly environment that is free of judgment and competition, the organization helps children and sometimes adults bloom creatively while learning the fundamentals of these subjects. Additionally, as a LOCALLY OWNED & OPERATED organization, Afterschool Art and More is committed to serving the needs of its community, and its support is vital and appreciated. Overall, the organization's grassroots approach allows it to have a positive impact on the community it serves.", 
-#           "role": "assistant"}], 
-# "score_chosen": 8.5, 
-# "score_rejected": 8.5, 
-# "length_stratum": "rejected_longer", 
-# "chosen_tokens": 92, 
-# "rejected_tokens": 129, 
-# "length_difference": -37}
+    run_training(args.config, "length-balanced", cfg["paths"]["dpo_length_train"], out, cfg["beta"])
 
     with torch.no_grad(), torch.inference_mode():
         tokenizer = load_tokenizer(cfg["base_model"])

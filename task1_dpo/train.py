@@ -76,8 +76,8 @@ def run_training(config_path: str, run_name: str, dataset_path: str | None = Non
         bundle["optimizer"].zero_grad()
         return loss.item(), norm
 
-    def log(loss, norm, cur_diagnostics):
-        append_jsonl(f"{cfg['results_dir']}/{run_name}-diagnostics.jsonl", {
+    def log(save_path, loss, norm, cur_diagnostics):
+        append_jsonl(save_path, {
             "loss": loss,
             "norm": norm,
             "logits_mean": cur_diagnostics["logit_mean"].item(),
@@ -90,14 +90,10 @@ def run_training(config_path: str, run_name: str, dataset_path: str | None = Non
     output = repo_path(output_path or cfg["standard_output"])
     output.parent.mkdir(parents=True, exist_ok=True)
 
+    save_path = cfg["results_dir"] / f"{run_name}-logs.jsonl"
+    save_path.unlink(missing_ok=True)
+    
     best_loss = float("inf")
-    diagnostics = {
-        "loss": [],
-        "norm": [],
-        "logits_mean": [],
-        "policy_margin_mean": [],
-        "preference_accuracy": [],
-    }
     for epoch in range(cfg["epochs"]):
         bundle["optimizer"].zero_grad()
         loss = 0.0
@@ -127,11 +123,11 @@ def run_training(config_path: str, run_name: str, dataset_path: str | None = Non
         if acc_steps != 0:  # leftover steps
             loss, norm = step(loss, bundle, acc_steps)
             acc_steps = 0
-            log(loss, norm, cur_diagnostics)
+            log(save_path, loss, norm, cur_diagnostics)
 
         if loss < best_loss:
             best_loss = loss
-            bundle["model"].save_pretrained(output)
+            bundle["model"].save_pretrained(output / f"{run_name}_model")
 
 
 def main():
