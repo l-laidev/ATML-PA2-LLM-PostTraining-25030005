@@ -109,7 +109,7 @@ def response_sequence_logprobs(model, batch: dict):
     logits = outputs.logits[:, :-1, :]
     labels = batch["input_ids"][:, 1:]
     mask = batch["response_mask"][:, 1:]
-    # TODO: check if we're allowed to use float16
+    # TODO: check if we're allowed to remove float()
     # logp = F.log_softmax(logits.float(), dim=-1)
     logp = torch.log_softmax(logits, dim=-1)
     tok = torch.gather(logp, -1, labels.unsqueeze(-1)).squeeze(-1)

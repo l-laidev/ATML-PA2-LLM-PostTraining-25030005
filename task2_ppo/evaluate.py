@@ -41,7 +41,7 @@ def main():
     logged_entropy = 0.
     logged_mean_len = 0.
     lengths = []
-    logged_stability = 0.
+    all_rewards = []
     n_total = 0
     with torch.no_grad(), torch.inference_mode():
         for row in tqdm(bundle["rows"], desc="Evaluating"):
@@ -83,6 +83,7 @@ def main():
                 bundle["cfg"]["reward_max_length"]
             )
             pt_terminated_with_eos = torch.tensor(generation["terminated_with_eos"], dtype=torch.bool, device=task_rewards.device)
+            # penalized r_task, only contributes to the last token in shaped_rewards(...)
             task_rewards -= (bundle["cfg"]["missing_eos_penalty"] * (~pt_terminated_with_eos))
             
             rollout_rewards = shaped_rewards(
@@ -99,8 +100,11 @@ def main():
             logged_entropy += sample_entropy(cur_logp, generation["response_mask"]).item()
             logged_mean_len += mean_response_length(generation["response_mask"])
             lengths.extend(generation["response_lengths"])
-            logged_stability += 0.  # TODO: stability stat
+            all_rewards.append(rollout_rewards.mean().item())
             n_total += 1
+    
+    # will be defined in the report in terms of variation in rewards, KL divergence and entropy
+    logged_stability = torch.std(torch.tensor(all_rewards)).item()
 
     save_json(
         f"{bundle['cfg']['results_dir']}/held-out-evaluation/{args.name}",
@@ -111,7 +115,7 @@ def main():
             "entropy": logged_entropy / n_total,
             "mean_response_length": logged_mean_len / n_total,
             "std_response_length": torch.as_tensor(lengths, dtype=torch.float32).std().item(),
-            "stability": logged_stability / n_total,
+            "stability": logged_stability,
         }
     )
 
