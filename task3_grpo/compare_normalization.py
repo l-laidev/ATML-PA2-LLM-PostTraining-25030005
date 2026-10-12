@@ -19,8 +19,7 @@ def main():
         cfg["fork_updates"],
         loss_type="grpo",
         run_name="type-grpo",
-        # TODO: determine the budget
-        token_budget=9999,
+        token_budget=4878.0,  # based on the standard run's 8th update
     )
     
     run_grpo(
@@ -29,7 +28,7 @@ def main():
         cfg["fork_updates"],
         loss_type="dr_grpo",
         run_name="type-dr-grpo",
-        token_budget=9999,
+        token_budget=4878.0,
     )
 
 
