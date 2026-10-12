@@ -33,7 +33,7 @@ def main():
             responses["response"].append(record["response"])
 
         responses = pd.DataFrame(responses)
-        pd.merge(manual_df, responses, how="inner", on="xstest_id").to_csv(base / f"manual_audit_{policy}.csv")
+        pd.merge(manual_df, responses, how="inner", on="xstest_id").to_json(base / f"manual_audit_{policy}.json")
 
 
 
