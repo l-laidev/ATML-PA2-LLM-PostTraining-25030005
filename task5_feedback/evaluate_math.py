@@ -56,7 +56,7 @@ def main():
     print("Exact verifier available as task5_feedback.rlvr.exact_reward")
     print("Pairwise judge available as task5_feedback.rlaif.PairwiseAIJudge")
 
-    resposes_results_path = repo_path(cfg["results_dir"]) / f"{args.dataset}-responses.json"
+    resposes_results_path = repo_path(cfg["results_dir"]) / "task5_feedback" / f"{args.dataset}-responses.json"
     if not resposes_results_path.exists():
         responses = {}
         for policy_name in policy_specs(cfg).keys():
@@ -68,27 +68,28 @@ def main():
             
             # source_index, question, gold_solution, gold_final, message, prompt
             for row in tqdm.tqdm(rows, desc="Generating"):
+                generation = batch_generate(
+                    policy,
+                    tokenizer,
+                    [prompt_messages(row)],
+                    max_prompt_length=256,  # based on PPO and GRPO's config
+                    max_new_tokens=cfg["math_max_new_tokens"],
+                    temperature=cfg["generation"]["temperature"],
+                    top_p=cfg["generation"]["top_p"],
+                    do_sample=cfg["generation"]["do_sample"],
+                )
                 responses[policy_name][row["source_index"]] = {
-                    "generation": batch_generate(
-                        policy,
-                        tokenizer,
-                        [prompt_messages(row)],
-                        max_prompt_length=256,  # based on PPO and GRPO's config
-                        max_new_tokens=cfg["math_max_new_tokens"],
-                        temperature=cfg["generation"]["temperature"],
-                        top_p=cfg["generation"]["top_p"],
-                        do_sample=cfg["generation"]["do_sample"],
-                    ),
+                    "generation": {k: generation[k].tolist() if hasattr(generation[k], "tolist") else generation[k] for k in ["responses", "response_mask", "response_lengths"]},
                     "question": row["question"],
-                    "gold_solution": row["gold_solution"],
+                    "gold_solution": row.get("gold_solution", "N/A"),
                     "gold_final": row["gold_final"],
                 }
         save_json(resposes_results_path, responses)
     else:
         print(f"Reusing responses: {resposes_results_path}")
         responses = load_json(resposes_results_path)
-
-    judge = PairwiseAIJudge(cfg, repo_path(cfg["results_dir"]) / f"{args.dataset}-judge-cache.json")
+    
+    judge = PairwiseAIJudge(cfg, repo_path(cfg["results_dir"]) / "task5_feedback" / f"{args.dataset}-judge-cache.json")
     for policy_name in responses.keys():
         win_rate = 0.
         total_vr = 0.
@@ -106,7 +107,7 @@ def main():
             total_vr += vr
             format_complied += float(extract_designated_final(current["generation"]["responses"][0]) is not None)
             
-            mean_res_len += mean_response_length(current["generation"]["response_mask"])
+            mean_res_len += mean_response_length(torch.tensor(current["generation"]["response_mask"]))
             all_lengths.extend(current["generation"]["response_lengths"])
             
             if policy_name == "sft": continue

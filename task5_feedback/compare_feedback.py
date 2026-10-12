@@ -40,7 +40,7 @@ def main():
                     "verified-judge-disagreement",
                 ]: continue
             
-            rel_change = (transfer[m] - gsm[m]) / gsm[m]
+            rel_change = (transfer[m] - gsm[m]) / (gsm[m] + 1e-6)
             drop_results[policy][m] = rel_change
     
     save_json(
