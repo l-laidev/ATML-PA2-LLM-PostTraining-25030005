@@ -69,6 +69,44 @@ def stratified_evaluate(stratified, tokenizer, model, cfg):
         "num_complied": num_complied,
     }
 
+def compliance_evaluate(loader, tokenizer, model, cfg):
+    lengths = []
+    mean_res_len = 0
+    num_complied = 0
+    num_total = 0
+    for prompt in tqdm.tqdm(loader, desc="Compliance evaluation", total=len(loader)):
+        generation = batch_generate(
+            model,
+            tokenizer,
+            prompt,
+            cfg["max_sequence_length"],
+            cfg["max_generation_tokens"],
+            cfg["generation"]["temperature"],
+            cfg["generation"]["top_p"],
+            cfg["generation"]["do_sample"],
+        )
+
+        has_complied = 0
+        for i in range(len(prompt)):
+            cur_has_complied = word_limit_compliance(prompt[i][0]["content"], generation["responses"][i])
+            cur_has_complied = 0 if cur_has_complied is None else int(cur_has_complied)
+            has_complied += cur_has_complied
+        has_complied /= len(prompt)
+
+        lengths.extend(generation["response_lengths"])
+        mean_res_len += mean_response_length(generation["response_mask"])
+        num_complied += has_complied
+        num_total += 1
+
+    std_res_len = torch.as_tensor(lengths, dtype=torch.float32).std().item()
+    mean_res_len /= num_total
+    num_complied /= num_total
+    return {
+        "mean_res_len": mean_res_len,
+        "std_res_len": std_res_len,
+        "num_complied": num_complied,
+    }
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/dpo.yaml")
@@ -81,7 +119,11 @@ def main():
 
 
     out = repo_path(cfg["length_output"])
-    run_training(args.config, "length-balanced", cfg["paths"]["dpo_length_train"], out, cfg["beta"])
+    model_path = out / "length-balanced_model"
+    if not model_path.exists():
+        run_training(args.config, "length-balanced", cfg["paths"]["dpo_length_train"], out, cfg["beta"])
+    else:
+        print(f"Reusing model from: {model_path}")
 
     with torch.no_grad(), torch.inference_mode():
         tokenizer = load_tokenizer(cfg["base_model"])
@@ -89,27 +131,53 @@ def main():
         def custom_collate(rows, tokenizer):
             chosen, rejected = make_collate(tokenizer, int(cfg["max_sequence_length"]))(rows)
             return list(map(prompt_messages, rows)), chosen, rejected, [r["length_stratum"] for r in rows]
+
+        def custom_collate_compliance(rows):
+            return list(map(prompt_messages, rows))
         
-        loader = torch.utils.data.DataLoader(
-            stratified,
-            batch_size=8,
-            shuffle=False,
-            collate_fn=lambda rows: custom_collate(rows, tokenizer)
-        )
-        model = load_policy(cfg, cfg["standard_output"], trainable=False, fresh_lora=False)
-        results = stratified_evaluate(loader, tokenizer, model, cfg)
-        save_json(f"{cfg['results_dir']}/len-study-base.json", results)
-        
-        # recreate to ensure same conditions
-        loader = torch.utils.data.DataLoader(
-            stratified,
-            batch_size=8,
-            shuffle=False,
-            collate_fn=lambda rows: custom_collate(rows, tokenizer)
-        )
-        model = load_policy(cfg, out / "length-balanced", trainable=False, fresh_lora=False)
-        results = stratified_evaluate(loader, tokenizer, model, cfg)
-        save_json(f"{cfg['results_dir']}/len-study-trained.json", results)
+        base_results = repo_path(cfg['results_dir'])
+        model = load_policy(cfg, repo_path(cfg["standard_output"]) / "standard_model", trainable=False, fresh_lora=False)
+        if not (base_results / "len-study-base.json").exists():
+            loader = torch.utils.data.DataLoader(
+                stratified,
+                batch_size=8,
+                shuffle=False,
+                collate_fn=lambda rows: custom_collate(rows, tokenizer)
+            )
+            results = stratified_evaluate(loader, tokenizer, model, cfg)
+            save_json(base_results / "len-study-base.json", results)
+
+        if not (base_results / "compliance-base.json").exists():
+            loader = torch.utils.data.DataLoader(
+                read_jsonl(cfg["paths"]["word_limit_prompts"]),
+                batch_size=8,
+                shuffle=False,
+                collate_fn=custom_collate_compliance
+            )
+            results = compliance_evaluate(loader, tokenizer, model, cfg)
+            save_json(base_results / "compliance-base.json", results)
+
+        model = load_policy(cfg, model_path, trainable=False, fresh_lora=False)
+        if not (base_results / "len-study-trained.json").exists():
+            # recreate to ensure same conditions
+            loader = torch.utils.data.DataLoader(
+                stratified,
+                batch_size=8,
+                shuffle=False,
+                collate_fn=lambda rows: custom_collate(rows, tokenizer)
+            )
+            results = stratified_evaluate(loader, tokenizer, model, cfg)
+            save_json(base_results / "len-study-trained.json", results)
+
+        if not (base_results / "compliance-trained.json").exists():
+            loader = torch.utils.data.DataLoader(
+                read_jsonl(cfg["paths"]["word_limit_prompts"]),
+                batch_size=8,
+                shuffle=False,
+                collate_fn=custom_collate_compliance
+            )
+            results = compliance_evaluate(loader, tokenizer, model, cfg)
+            save_json(base_results / "compliance-trained.json", results)
 
 if __name__ == "__main__":
     main()
