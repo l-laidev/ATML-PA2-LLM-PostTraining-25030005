@@ -128,6 +128,8 @@ def run_training(config_path: str, run_name: str, dataset_path: str | None = Non
         if loss < best_loss:
             best_loss = loss
             bundle["model"].save_pretrained(output / f"{run_name}_model")
+    
+    bundle["model"].save_pretrained(output / f"{run_name}_model_final")
 
 
 def main():

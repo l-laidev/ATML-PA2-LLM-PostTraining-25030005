@@ -119,7 +119,7 @@ def main():
 
 
     out = repo_path(cfg["length_output"])
-    model_path = out / "length-balanced_model"
+    model_path = out / "length-balanced_model_final"
     if not model_path.exists():
         run_training(args.config, "length-balanced", cfg["paths"]["dpo_length_train"], out, cfg["beta"])
     else:
@@ -136,7 +136,7 @@ def main():
             return list(map(prompt_messages, rows))
         
         base_results = repo_path(cfg['results_dir'])
-        model = load_policy(cfg, repo_path(cfg["standard_output"]) / "standard_model", trainable=False, fresh_lora=False)
+        model = load_policy(cfg, repo_path(cfg["standard_output"]) / "standard_model_final", trainable=False, fresh_lora=False)
         if not (base_results / "len-study-base.json").exists():
             loader = torch.utils.data.DataLoader(
                 stratified,
