@@ -8,7 +8,7 @@ import tqdm
 
 from common.data import load_yaml, prompt_messages, read_jsonl, repo_path
 from common.generation import batch_generate
-from common.logging_utils import save_json
+from common.logging_utils import load_json, save_json
 from common.metrics import mean_response_length
 from common.models import load_policy, load_tokenizer
 from task5_feedback.rlaif import PairwiseAIJudge
@@ -55,34 +55,40 @@ def main():
     print("Policies:", list(policy_specs(cfg)))
     print("Exact verifier available as task5_feedback.rlvr.exact_reward")
     print("Pairwise judge available as task5_feedback.rlaif.PairwiseAIJudge")
-    
-    responses = {}
-    for policy_name in policy_specs(cfg).keys():
-        print(f"Extracting responses from: {policy_name}")
-        
-        policy = load_frozen_policy(cfg, policy_name)
-        tokenizer = load_tokenizer(cfg["base_model"])
-        responses[policy_name] = {}
-        
-        # source_index, question, gold_solution, gold_final, message, prompt
-        for row in tqdm.tqdm(rows, desc="Generating"):
-            responses[policy_name][row["source_index"]] = {
-                "generation": batch_generate(
-                    policy,
-                    tokenizer,
-                    [prompt_messages(row)],
-                    max_prompt_length=256,  # based on PPO and GRPO's config
-                    max_new_tokens=cfg["math_max_new_tokens"],
-                    temperature=cfg["generation"]["temperature"],
-                    top_p=cfg["generation"]["top_p"],
-                    do_sample=cfg["generation"]["do_sample"],
-                ),
-                "question": row["question"],
-                "gold_solution": row["gold_solution"],
-                "gold_final": row["gold_final"],
-            }
-    
-    judge = PairwiseAIJudge(cfg, repo_path(cfg["results_dir"]))
+
+    resposes_results_path = repo_path(cfg["results_dir"]) / f"{args.dataset}-responses.json"
+    if not resposes_results_path.exists():
+        responses = {}
+        for policy_name in policy_specs(cfg).keys():
+            print(f"Extracting responses from: {policy_name}")
+            
+            policy = load_frozen_policy(cfg, policy_name)
+            tokenizer = load_tokenizer(cfg["base_model"])
+            responses[policy_name] = {}
+            
+            # source_index, question, gold_solution, gold_final, message, prompt
+            for row in tqdm.tqdm(rows, desc="Generating"):
+                responses[policy_name][row["source_index"]] = {
+                    "generation": batch_generate(
+                        policy,
+                        tokenizer,
+                        [prompt_messages(row)],
+                        max_prompt_length=256,  # based on PPO and GRPO's config
+                        max_new_tokens=cfg["math_max_new_tokens"],
+                        temperature=cfg["generation"]["temperature"],
+                        top_p=cfg["generation"]["top_p"],
+                        do_sample=cfg["generation"]["do_sample"],
+                    ),
+                    "question": row["question"],
+                    "gold_solution": row["gold_solution"],
+                    "gold_final": row["gold_final"],
+                }
+        save_json(resposes_results_path, responses)
+    else:
+        print(f"Reusing responses: {resposes_results_path}")
+        responses = load_json(resposes_results_path)
+
+    judge = PairwiseAIJudge(cfg, repo_path(cfg["results_dir"]) / f"{args.dataset}-judge-cache.json")
     for policy_name in responses.keys():
         win_rate = 0.
         total_vr = 0.

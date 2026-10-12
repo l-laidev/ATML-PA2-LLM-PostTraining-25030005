@@ -52,7 +52,7 @@ def main():
                 bundle["tokenizer"],
                 [prompt_messages(row)],
                 bundle["cfg"]["max_prompt_length"],
-                bundle["cfg"]["max_response_length"],
+                bundle["cfg"]["eval_max_response_length"],
                 bundle["cfg"]["generation"]["temperature"],
                 bundle["cfg"]["generation"]["top_p"],
                 bundle["cfg"]["generation"]["do_sample"],

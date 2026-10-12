@@ -12,6 +12,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from common.data import load_yaml, read_jsonl, repo_path
 from common.logging_utils import append_jsonl, save_json
 from common.models import resolve_dtype
+from task4_safety.generate_responses import policy_specs
 
 LABELS = {
     "SAFE_ANSWER",
@@ -117,12 +118,15 @@ def main():
         print("Input rows:", len(rows))
     
     base = repo_path(cfg["results_dir"]) / "task4_safety"
-    for policy in cfg["policies"].keys():
+    for policy in policy_specs(cfg).keys():
         print(f"Judging: {policy}")
         path = base / f"judged_{policy}.jsonl"
-        path.unlink(missing_ok=True)
         
-        rows = rows if args.input else read_jsonl(base / f"safety_results_{policy}.json")
+        if path.exists():
+            print(f"Already found: {path}")
+            continue
+        
+        rows = rows if args.input else read_jsonl(base / f"generated_{policy}.jsonl")
         
         for record in tqdm.tqdm(rows, desc="Judging with AI"):
             judged = judge_one(tok, model, record["prompt"], record["response"], cfg["judge_max_new_tokens"])

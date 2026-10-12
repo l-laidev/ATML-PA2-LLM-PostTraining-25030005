@@ -93,7 +93,7 @@ def main():
             evidence["prompt"].append(data["prompt"])
             evidence["response"].append(data["response"])
         
-        manual_judgements = pd.read_csv(base / "manual_audit_ids.csv")
+        manual_judgements = pd.read_csv(base / f"manual_audit_{policy}.csv")
         automated_judgements = pd.DataFrame(judgements_for_manual_cmp)
         evidence = pd.DataFrame(evidence)
         merged = pd.merge(manual_judgements, automated_judgements, how="inner", on="xstest_id")

@@ -98,6 +98,8 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
         shuffled = shuffled[:cfg["prompts_per_update"]]
         prompts = bundle["prompt_rows"][shuffled]
         
+        if not isinstance(prompts, list):
+            prompts = [prompts]  # single sample
         prompts = list(map(prompt_messages, prompts))
         
         generation = batch_generate(
@@ -116,6 +118,7 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
             break
         total_generated_tokens += generated_tokens
 
+        # convert inference tensors to normal ones
         for k in ["sequences", "response_ids", "attention_mask"]:
             generation[k] = generation[k].clone()
         
@@ -277,7 +280,8 @@ def run_ppo(config_path: str, output: str | None = None, updates: int | None = N
                 "value_norm": logged_value_norm,
                 "affected_frac": logged_affected_frac,
                 "rollout_mean_length": mean_response_length(generation["response_mask"]),
-                "rollout_std_length": float(generation["response_mask"].sum(-1).float().std().item()),
+                "rollout_std_length": 0.0 if cfg["prompts_per_update"] <= 1 else float(generation["response_mask"].sum(-1).float().std().item()),
+                "n_samples": cfg["prompts_per_update"],
                 "wall_time": wall_time,
                 "peak_VRAM_GiB": torch.cuda.max_memory_allocated() / (1024**3),
                 "update_generated_tokens": generated_tokens,

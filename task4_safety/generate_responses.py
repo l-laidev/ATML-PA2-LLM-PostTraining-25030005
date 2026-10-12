@@ -33,7 +33,7 @@ def generate_for_policy(cfg, policy_name: str, batch_size: int = 4):
     model = load_policy(cfg, adapter_path=adapter, trainable=False)
     df = load_xstest(cfg)
     records = []
-    for start in range(0, len(df), batch_size):
+    for start in tqdm.trange(0, len(df), batch_size):
         chunk = df.iloc[start:start + batch_size]
         prompts = [[{"role": "user", "content": str(x)}] for x in chunk["prompt"].tolist()]
         gen = batch_generate(
@@ -67,12 +67,15 @@ def main():
     print("Policies:", list(policy_specs(cfg)))
     print("XSTest rows:", len(load_xstest(cfg)))
     
-    for policy in cfg["policies"].keys():
+    for policy in policy_specs(cfg).keys():
         print(f"Generating for: {policy}")
-        records = generate_for_policy(cfg, policy)
-        
         path = repo_path(cfg["results_dir"]) / "task4_safety" / f"generated_{policy}.jsonl"
-        path.unlink(missing_ok=True)
+        if path.exists():
+            print(f"Already found: {path}")
+            continue
+        # path.unlink(missing_ok=True)
+        
+        records = generate_for_policy(cfg, policy)
         for record in tqdm.tqdm(records, desc="Saving"):
             append_jsonl(
                 path,

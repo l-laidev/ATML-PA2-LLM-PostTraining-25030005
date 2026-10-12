@@ -118,12 +118,12 @@ def run_training(config_path: str, run_name: str, dataset_path: str | None = Non
             if acc_steps == cfg["grad_accum_steps"]:
                 loss, norm = step(loss, bundle, acc_steps)
                 acc_steps = 0
-                log(save_path, loss, norm, cur_diagnostics)
+                log(save_path, loss, norm.item(), cur_diagnostics)
         
         if acc_steps != 0:  # leftover steps
             loss, norm = step(loss, bundle, acc_steps)
             acc_steps = 0
-            log(save_path, loss, norm, cur_diagnostics)
+            log(save_path, loss, norm.item(), cur_diagnostics)
 
         if loss < best_loss:
             best_loss = loss

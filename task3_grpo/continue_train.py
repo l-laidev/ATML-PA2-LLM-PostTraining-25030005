@@ -52,9 +52,9 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
     if token_budget is not None:
         cfg["generated_token_budget"] = token_budget
     
-    policy, tokenizer, prompts = cfg["policy"], cfg["tokenizer"], cfg["prompt_rows"]
-    rm_model, rm_tokenizer = cfg["reward_model"], cfg["reward_tokenizer"]
-    optimizer = cfg["optimizer"]
+    policy, tokenizer, prompts = bundle["policy"], bundle["tokenizer"], bundle["prompt_rows"]
+    rm_model, rm_tokenizer = bundle["reward_model"], bundle["reward_tokenizer"]
+    optimizer = bundle["optimizer"]
     
     training_results_path = repo_path(cfg['results_dir']) / f"{run_name}.json"
     training_results_path.unlink(missing_ok=True)
@@ -72,11 +72,11 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
         group_ids = torch.arange(cfg["prompts_per_update"], device=shuffled.device)
         
         # [P1, P2] -> [P1, P1, P2, P2]
-        shuffled = torch.repeat_interleave(shuffled, cfg["num_generations"])
+        shuffled = torch.repeat_interleave(shuffled, cfg["num_generations"]).tolist()
         # [0, 1] -> [0, 0, 1, 1]
-        group_ids = torch.repeat_interleave(group_ids, cfg["num_generations"])
-        
-        shuffled_prompts = prompts[shuffled]
+        group_ids = torch.repeat_interleave(group_ids, cfg["num_generations"])  # kept as a tensor on purpose (for use in group_relative_advantages)
+
+        shuffled_prompts = [prompts[chosen_idx] for chosen_idx in shuffled]
         shuffled_prompts = list(map(prompt_messages, shuffled_prompts))
         
         generation = batch_generate(
@@ -94,6 +94,10 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
         if "generated_token_budget" in cfg and total_generated_tokens+generated_tokens > cfg["generated_token_budget"]:
             break
         total_generated_tokens += generated_tokens
+
+        # convert inference tensors to normal ones
+        for k in ["sequences", "response_ids", "attention_mask"]:
+            generation[k] = generation[k].clone()
         
         mask = generation["response_mask"]
         if cfg["mask_truncated_completions"]:
@@ -101,7 +105,7 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
         
         policy.eval()
         with reference_mode(policy), torch.no_grad():
-            ref_logp = response_token_logprobs(
+            ref_logp, _ = response_token_logprobs(
                 policy,
                 generation["sequences"],
                 generation["attention_mask"],
@@ -110,7 +114,7 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
             )
         
         with torch.no_grad():
-            old_logp = response_token_logprobs(
+            old_logp, _ = response_token_logprobs(
                 policy,
                 generation["sequences"],
                 generation["attention_mask"],
@@ -133,7 +137,7 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
         
         for epoch in tqdm.trange(cfg["policy_epochs"], desc="GRPO Epochs", leave=False):
             policy.eval()
-            new_logp = response_token_logprobs(
+            new_logp, _ = response_token_logprobs(
                 policy,
                 generation["sequences"],
                 generation["attention_mask"],
@@ -170,12 +174,12 @@ def run_grpo(config_path: str, output: str | None = None, updates: int | None = 
                 "KL": metrics["sampled_kl"].item(),
                 "mean_within-group_std": rewards_by_group.std(unbiased=False, dim=-1).mean().item(),
                 # based on the starter code (1e-6 tolerance)
-                "uninfo_frac": ((rewards_by_group.std(unbiased=False, dim=-1) < 1e-6).sum() / cfg["prompts_per_update"]),
+                "uninfo_frac": ((rewards_by_group.std(unbiased=False, dim=-1) < 1e-6).sum().item() / cfg["prompts_per_update"]),
                 "loss": loss.item(),
-                "norm": norm,
+                "norm": norm.item(),
                 "entropy": metrics["sample_entropy"].item(),
                 "mean_length": mean_response_length(generation["response_mask"]),
-                "std_length": np.std(generation["response_lengths"]),
+                "std_length": np.std(generation["response_lengths"]).tolist(),
                 "wall_time": timer(),
                 "peak_VRAM_GiB": torch.cuda.max_memory_allocated() / (1024**3),
                 "update_generated_tokens": generated_tokens,
