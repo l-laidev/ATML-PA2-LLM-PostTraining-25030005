@@ -65,15 +65,14 @@ def main():
         informative_rate = (rewards.std(axis=-1) >= 1e-6).mean()
         mean_within_group_std = rewards.std(axis=-1).mean()
         
-        # based on group_relative_advantages function
+        # based on group_relative_advantages function, but without the division to only keep the relative signal
         mu = rewards.mean(axis=-1, keepdims=True)
-        denom = rewards.std(axis=-1, keepdims=True)
-        group_rel_var = np.var((rewards - mu) / np.clip(denom, a_min=1e-6, a_max=None))
+        group_rel_var = np.var(rewards - mu)
         
         return {
             "informative_rate": informative_rate.tolist(),
             "mean_within-group_std": mean_within_group_std.tolist(),
-            "advantage_variance": group_rel_var.tolist(),
+            "unnorm_advantage_variance": group_rel_var.tolist(),
         }
     
     results_path = repo_path(cfg["results_dir"]) / "group-size.json"

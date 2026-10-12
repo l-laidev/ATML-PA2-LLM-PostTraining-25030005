@@ -50,7 +50,8 @@ def main():
     reward_model, reward_tok = bundle["reward"][0], bundle["reward"][1]
     loader = torch.utils.data.DataLoader(
         bundle["rows"],
-        batch_size=int(bundle["cfg"]["batch_size"]),
+        # batch_size=int(bundle["cfg"]["batch_size"]),
+        batch_size=1,
         shuffle=False,
         collate_fn=lambda rows: custom_collate(rows, bundle["tokenizer"]),
     )
@@ -68,37 +69,52 @@ def main():
             for prompts, chosen, rejected in tqdm.tqdm(loader, desc="Evaluating", total=len(loader)):
                 c = {k: v.to(bundle["policy"].device) for k, v in chosen.items()}
                 r = {k: v.to(bundle["policy"].device) for k, v in rejected.items()}
-                
-                c_prompt_width = c["attention_mask"].sum(dim=1) - c["response_mask"].sum(dim=1)
-                r_prompt_width = r["attention_mask"].sum(dim=1) - r["response_mask"].sum(dim=1)
-                
-                c_starts = (c["response_mask"] != 1).sum(dim=1)
-                c_idxs = torch.arange(c_starts.shape[0])
-                c_response_ids = c["input_ids"][c_idxs, c_starts[c_idxs]]
-                
-                r_starts = (r["response_mask"] != 1).sum(dim=1)
-                r_idxs = torch.arange(r_starts.shape[0])
-                r_response_ids = r["input_ids"][r_idxs, r_starts[r_idxs]]
+
+                # c_response_mask = c["response_mask"][0]
+                # response_indices = (c_response_mask == 1).nonzero(as_tuple=False)
+                # c_prompt_width = response_indices[0].item()
+                # c_response_ids = c["input_ids"][:, c_prompt_width:]
+                # c_mask = c["response_mask"][:, c_prompt_width:]
+                # if c_prompt_width + c_response_ids.shape[1] >= c["input_ids"].shape[1]:
+                #     c_response_ids = c_response_ids[:, :-1]
+                #     c_mask = c_mask[:, :-1]
+
+                # r_response_mask = r["response_mask"][0]
+                # r_response_indices = (r_response_mask == 1).nonzero(as_tuple=False)
+                # r_prompt_width = r_response_indices[0].item()
+                # r_response_ids = r["input_ids"][:, r_prompt_width:]
+                # r_mask = r["response_mask"][:, r_prompt_width:]
+
+                # if r_prompt_width + r_response_ids.shape[1] >= r["input_ids"].shape[1]:
+                #     r_response_ids = r_response_ids[:, :-1]
+                #     r_mask = r_mask[:, :-1]
 
                 with reference_mode(bundle["policy"]):
                     ref_chosen, _, _ = response_sequence_logprobs(bundle["policy"], c)
                     ref_rejected, _, _ = response_sequence_logprobs(bundle["policy"], r)
                     
-                    ref_chosen_tok, _ = response_token_logprobs(bundle["policy"], c["input_ids"], c["attention_mask"], c_prompt_width, c_response_ids)
-                    ref_rejected_tok, _ = response_token_logprobs(bundle["policy"], r["input_ids"], r["attention_mask"], r_prompt_width, r_response_ids)
+                    # ref_chosen_tok, _ = response_token_logprobs(bundle["policy"], c["input_ids"], c["attention_mask"], c_prompt_width, c_response_ids)
+                    # ref_rejected_tok, _ = response_token_logprobs(bundle["policy"], r["input_ids"], r["attention_mask"], r_prompt_width, r_response_ids)
 
                 policy_chosen, _, _ = response_sequence_logprobs(bundle["policy"], c)
                 policy_rejected, _, _ = response_sequence_logprobs(bundle["policy"], r)
                 
-                policy_chosen_tok, _, _ = response_token_logprobs(bundle["policy"], c["input_ids"], c["attention_mask"], c_prompt_width, c_response_ids)
-                policy_rejected_tok, _, _ = response_token_logprobs(bundle["policy"], r["input_ids"], r["attention_mask"], r_prompt_width, r_response_ids)
+                # policy_chosen_tok, _ = response_token_logprobs(bundle["policy"], c["input_ids"], c["attention_mask"], c_prompt_width, c_response_ids)
+                # policy_rejected_tok, _ = response_token_logprobs(bundle["policy"], r["input_ids"], r["attention_mask"], r_prompt_width, r_response_ids)
 
                 cur_loss, _ = dpo_loss(policy_chosen, policy_rejected, ref_chosen, ref_rejected, bundle["cfg"]["beta"])
                 cur_pref_acc = preference_accuracy(policy_chosen, policy_rejected)
+                
+                c_mask = c["response_mask"]#[:, c_prompt_width:][:, : policy_chosen_tok.shape[1]]
+                r_mask = r["response_mask"]#[:, r_prompt_width:][:, : policy_rejected_tok.shape[1]]
                 cur_KL_ref = 1/2 * (
-                      sampled_kl(policy_chosen_tok, ref_chosen_tok, c["response_mask"])
-                    + sampled_kl(policy_rejected_tok, ref_rejected_tok, r["response_mask"])
+                    sampled_kl(policy_chosen, ref_chosen, c_mask)
+                    + sampled_kl(policy_rejected, ref_rejected, r_mask)
                 )
+                # cur_KL_ref = 1/2 * (
+                #       sampled_kl(policy_chosen_tok, ref_chosen_tok, c_mask)
+                #     + sampled_kl(policy_rejected_tok, ref_rejected_tok, r_mask)
+                # )
 
                 generation = batch_generate(
                     bundle["policy"],
@@ -121,15 +137,16 @@ def main():
                 KL_ref += cur_KL_ref.item()
                 total += 1
                 
-                for i in range(len(prompt)):
+                for i in range(len(prompts)):
                     ith_loss, ith_metrics = dpo_loss(policy_chosen[i], policy_rejected[i], ref_chosen[i], ref_rejected[i], bundle["cfg"]["beta"])
                     append_jsonl(
                         evidence_path,
                         {
-                            "prompt": prompt[i][0]["content"],
+                            "prompt": prompts[i][0]["content"],
                             "response": generation["responses"][i],
                             "pref_accuracy": preference_accuracy(policy_chosen[i], policy_rejected[i]),
-                            "KL_ref": 1/2 * (sampled_kl(policy_chosen_tok[i], ref_chosen_tok[i], c["response_mask"][i]) + sampled_kl(policy_rejected_tok[i], ref_rejected_tok[i], r["response_mask"][i])).item(),
+                            # "KL_ref": 1/2 * (sampled_kl(policy_chosen_tok[i:i+1], ref_chosen_tok[i:i+1], c_mask[i:i+1]) + sampled_kl(policy_rejected_tok[i:i+1], ref_rejected_tok[i:i+1], r_mask[i:i+1])).item(),
+                            "KL_ref": 1/2 * (sampled_kl(policy_chosen[i:i+1], ref_chosen[i:i+1], c_mask[i:i+1]) + sampled_kl(policy_rejected[i:i+1], ref_rejected[i:i+1], r_mask[i:i+1])).item(),
                             "DPO_loss": ith_loss.item(),
                             "pref_accuracy_with_ref_margin": ith_metrics["preference_accuracy"].item(),
                         }
