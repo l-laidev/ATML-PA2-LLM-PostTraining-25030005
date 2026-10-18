@@ -7,6 +7,7 @@ import pandas as pd
 import tqdm
 from common.data import load_yaml, read_jsonl, repo_path
 from common.logging_utils import save_json
+from task4_safety.generate_responses import policy_specs
 
 
 def main():
@@ -26,7 +27,8 @@ def main():
         rates = {k: v / total for k,v in counts.items()}
         return counts, rates
     
-    for policy in cfg["policies"].keys():
+    for policy in policy_specs(cfg).keys():
+
         base = repo_path(cfg["results_dir"]) / "task4_safety"
         path = base / f"safety_results_{policy}.json"
         path.unlink(missing_ok=True)
@@ -105,12 +107,11 @@ def main():
         
         labels = sorted(set(merged["label"]) | set(merged["manual_label"]))
         confusion = pd.crosstab(index=merged["manual_label"], columns=merged["label"]).reindex(index=labels, columns=labels, fill_value=0)
-        
         per_label_agreement = pd.DataFrame({
             "manual_label": merged["manual_label"].value_counts(),
             "label": merged["label"].value_counts(),
             "correct": confusion.to_numpy().diagonal(),
-        }).astype(int)
+        }).fillna(0).astype(int)
         
         print(confusion)
         print(per_label_agreement)

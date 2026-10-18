@@ -14,7 +14,9 @@ from task1_dpo.train import make_collate, run_training
 def stratified_evaluate(stratified, tokenizer, model, cfg):
     pref_accs = {}
     lengths = []
+    res_len_strata = {}
     mean_res_len = 0
+    mean_res_len_strata = {}
     num_complied = 0
     num_total = 0
     for prompt, chosen, rejected, strata in tqdm.tqdm(stratified, desc="Stratified-length evaluation", total=len(stratified)):
@@ -55,9 +57,13 @@ def stratified_evaluate(stratified, tokenizer, model, cfg):
             sample_indices = grouped[stratum]
             pref_acc = preference_accuracy(policy_chosen[sample_indices], policy_rejected[sample_indices])
             pref_accs[stratum] = pref_accs.get(stratum, []) + [pref_acc]
+            mean_res_len_strata[stratum] = mean_res_len_strata.get(stratum, []) + [mean_response_length(generation["response_mask"][sample_indices])]
+            res_len_strata[stratum] = res_len_strata.get(stratum, []) + [generation["response_lengths"][si] for si in sample_indices]
 
     for stratum in pref_accs:
         pref_accs[stratum] = torch.as_tensor(pref_accs[stratum]).mean().item()
+        mean_res_len_strata[stratum] = torch.as_tensor(mean_res_len_strata[stratum]).mean().item()
+        res_len_strata[stratum] = torch.as_tensor(res_len_strata[stratum], dtype=torch.float32).std().item()
 
     std_res_len = torch.as_tensor(lengths, dtype=torch.float32).std().item()
     mean_res_len /= num_total
@@ -65,7 +71,9 @@ def stratified_evaluate(stratified, tokenizer, model, cfg):
     return {
         "pref_accs": pref_accs,
         "mean_res_len": mean_res_len,
+        "mean_res_len_strata": mean_res_len_strata,
         "std_res_len": std_res_len,
+        "std_res_len_strata": res_len_strata,
         "num_complied": num_complied,
     }
 

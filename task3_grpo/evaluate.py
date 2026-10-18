@@ -55,7 +55,7 @@ def main():
     
     with torch.no_grad(), torch.inference_mode():
         for cur_prompt in tqdm.tqdm(eval_prompts, desc="Evaluating"):
-            prompts = [cur_prompt["prompt"] for _ in range(cfg["num_generations"])]
+            prompts = [cur_prompt for _ in range(cfg["num_generations"])]
             prompts = list(map(prompt_messages, prompts))
             
             generation = batch_generate(
