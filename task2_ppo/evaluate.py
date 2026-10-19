@@ -37,6 +37,7 @@ def main():
     eval_results_path.unlink(missing_ok=True)
     evidence_path.unlink(missing_ok=True)
 
+    logged_reward_unpenalized = 0.
     logged_reward = 0.
     logged_rollout_reward = 0.
     logged_kl_from_ref = 0.
@@ -77,16 +78,16 @@ def main():
             )
             bundle["policy"].train()
 
-            task_rewards = score_reward_pairs(
+            unpenalized_task_rewards = score_reward_pairs(
                 bundle["reward"][0],  # model
                 bundle["reward"][1],  # tokenizer
                 [prompt_messages(row)],
                 generation["responses"],
                 bundle["cfg"]["reward_max_length"]
             )
-            pt_terminated_with_eos = torch.tensor(generation["terminated_with_eos"], dtype=torch.bool, device=task_rewards.device)
+            pt_terminated_with_eos = torch.tensor(generation["terminated_with_eos"], dtype=torch.bool, device=unpenalized_task_rewards.device)
             # penalized r_task, only contributes to the last token in shaped_rewards(...)
-            task_rewards -= (bundle["cfg"]["missing_eos_penalty"] * (~pt_terminated_with_eos))
+            task_rewards = unpenalized_task_rewards - (bundle["cfg"]["missing_eos_penalty"] * (~pt_terminated_with_eos))
             
             rollout_rewards = shaped_rewards(
                 task_rewards,
@@ -96,6 +97,7 @@ def main():
                 bundle["cfg"]["kl_beta"],
             )
 
+            logged_reward_unpenalized += unpenalized_task_rewards.mean().item()
             logged_reward += task_rewards.mean().item()
             logged_rollout_reward += rollout_rewards.mean().item()
             logged_kl_from_ref += sampled_kl(cur_logp, ref_logp, generation["response_mask"]).item()
@@ -122,6 +124,7 @@ def main():
     save_json(
         eval_results_path,
         {
+            "mean_task_reward_unpenalized": logged_reward_unpenalized / n_total,
             "mean_task_reward": logged_reward / n_total,
             "mean_rollout_reward": logged_rollout_reward / n_total,
             "kl_from_ref": logged_kl_from_ref / n_total,
