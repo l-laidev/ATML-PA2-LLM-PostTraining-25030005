@@ -1,0 +1,28 @@
+{
+  "sft": {
+    "mean_exact_reward": 0.8705851626406027,
+    "format_compliance": 0.4878036882836872,
+    "mean_length": -0.38267765920383745,
+    "std_length": -0.07197740337517484,
+    "verifier-judge-agreement": 0.0,
+    "verifier-judge-disagreement": 0.0
+  },
+  "rlvr": {
+    "win_rate": 0.01628661312062576,
+    "mean_exact_reward": 0.55055994193278,
+    "format_compliance": 0.3613436268648063,
+    "mean_length": -0.4410940501539089,
+    "std_length": -0.3320793652677136,
+    "verifier-judge-agreement": -0.22099410884954346,
+    "verifier-judge-disagreement": 0.33613360638586637
+  },
+  "rlaif": {
+    "win_rate": -0.038834876048784404,
+    "mean_exact_reward": 0.744183450522847,
+    "format_compliance": 0.3488363980548882,
+    "mean_length": -0.4422645143785551,
+    "std_length": -0.07301286525050597,
+    "verifier-judge-agreement": -0.043955971501145975,
+    "verifier-judge-disagreement": 0.06779643780566662
+  }
+}

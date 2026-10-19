@@ -1,0 +1,9 @@
+{
+  "win_rate": 0.0,
+  "mean_exact_reward": 0.2833333333333333,
+  "format_compliance": 0.41,
+  "mean_length": 286.22,
+  "std_length": 94.64881896972656,
+  "verifier-judge-agreement": 0.0,
+  "verifier-judge-disagreement": 0.0
+}

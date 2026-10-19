@@ -1,0 +1,8 @@
+{
+  "loss": 0.6945468179384867,
+  "preference_accuracy": 0.49666666666666665,
+  "kl_reference": -0.07210026035706202,
+  "reward_score": 1.154175402323405,
+  "mean_response_length": 155.03666666666666,
+  "response_length_std": 104.10247802734375
+}

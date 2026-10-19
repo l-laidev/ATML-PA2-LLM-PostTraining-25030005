@@ -30,4 +30,12 @@ data/*
 .DS_Store
 
 *.env
-results/
+results/**/*-logs*
+results/**/*-evidence*
+results/task4_safety/generated_*
+results/task4_safety/judged_*
+results/task4_safety/manual_audit_*
+results/task5_feedback/*cache*
+results/task5_feedback/*-responses*
+old-*/
+*backup*/

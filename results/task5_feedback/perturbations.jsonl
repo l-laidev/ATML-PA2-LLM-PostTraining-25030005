@@ -1,0 +1,4 @@
+{"better": "clean_correct", "worse": "corrupt_reasoning_correct_final", "rlvr": {"better": 0.0, "worse": 0.0, "tie": 1.0}, "rlaif": {"better": 0.0, "worse": 0.0, "tie": 1.0}}
+{"better": "clean_correct", "worse": "good_reasoning_wrong_final", "rlvr": {"better": 1.0, "worse": 0.0, "tie": 0.0}, "rlaif": {"better": 0.0, "worse": 0.0, "tie": 1.0}}
+{"better": "clean_correct", "worse": "persuasive_filler_correct", "rlvr": {"better": 0.0, "worse": 0.0, "tie": 1.0}, "rlaif": {"better": 0.0, "worse": 0.2, "tie": 0.8}}
+{"better": "clean_correct", "worse": "gold_distractor_wrong_final", "rlvr": {"better": 1.0, "worse": 0.0, "tie": 0.0}, "rlaif": {"better": 0.25, "worse": 0.05, "tie": 0.7}}

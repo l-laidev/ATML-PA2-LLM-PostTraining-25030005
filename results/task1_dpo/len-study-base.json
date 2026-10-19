@@ -1,0 +1,20 @@
+{
+  "pref_accs": {
+    "rejected_longer": 0.9626437425613403,
+    "preferred_longer": 0.11049383133649826,
+    "length_matched": 0.5881720781326294
+  },
+  "mean_res_len": 139.15725806451613,
+  "mean_res_len_strata": {
+    "rejected_longer": 144.66839599609375,
+    "preferred_longer": 165.43272399902344,
+    "length_matched": 113.7284927368164
+  },
+  "std_res_len": 96.4466323852539,
+  "std_res_len_strata": {
+    "rejected_longer": 96.5323715209961,
+    "preferred_longer": 95.32660675048828,
+    "length_matched": 94.41505432128906
+  },
+  "num_complied": 0.0
+}

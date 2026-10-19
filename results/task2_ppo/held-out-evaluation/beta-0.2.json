@@ -1,0 +1,9 @@
+{
+  "mean_task_reward": 1.2893903923034669,
+  "mean_rollout_reward": 0.026361089020465443,
+  "kl_from_ref": 8.136838674545288e-05,
+  "entropy": 0.7880429077148438,
+  "mean_response_length": 296.945,
+  "std_response_length": 251.6625518798828,
+  "stability": 0.11402246356010437
+}
